@@ -18,7 +18,7 @@ OUT = os.path.join(ROOT, "build")
 PAL = {
     "K": (0x00, 0x00, 0x00), "O": (0x80, 0x80, 0x00), "R": (0x80, 0x00, 0x00),
     "r": (0xFF, 0x00, 0x00), "G": (0x00, 0xFF, 0x00), "g": (0x00, 0x80, 0x00),
-    "A": (0x80, 0x80, 0x80), "Y": (0xFF, 0xFF, 0x00), "N": (0x00, 0x00, 0x80),
+    "A": (0x80, 0x80, 0x80), "a": (0x64, 0x64, 0x64), "Y": (0xFF, 0xFF, 0x00), "N": (0x00, 0x00, 0x80),
     "B": (0x00, 0x00, 0xFF), "W": (0xF0, 0xF0, 0xF0), "w": (0xFF, 0xFF, 0xFF),
     "S": (0xF5, 0x91, 0x8F), "V": (0xC0, 0x00, 0xC0),
 }
@@ -52,20 +52,20 @@ def build_logo():
             ruff_pt = math.floor((ang + math.pi) / (math.pi / 5)) % 2 == 0
             r_edge = 1.0 if ruff_pt else 0.82
             ch = None
-            if d2 <= r_edge and d2 >= 0.68:
-                ch = "Y" if d2 > r_edge - 0.15 else ("O" if (x + y) % 2 else "Y")
-            elif d2 < 0.68 and d <= edge:
+            if d2 <= r_edge and d2 >= 0.68:  # boulder ruff collar around the face
+                ch = "A" if d2 > r_edge - 0.15 else ("a" if (x + y) % 2 else "A")
+            elif d2 < 0.68 and d <= edge:  # robe behind the face window
                 if abs(d - 0.74) < 0.05:
-                    ch = "Y"
+                    ch = "A"  # stone hem ring
                 elif abs(d - 0.5) < 0.06 and (x + 3 * y) % 6 == 0:
-                    ch = "Y"
+                    ch = "A"  # stone scrollwork
                 else:
                     ch = "r" if (x + y) % 7 == 0 else "R"
-            elif d <= edge:
+            elif d <= edge:  # robe in front
                 if d > edge - 0.12:
-                    ch = "Y"
+                    ch = "A"  # frilly boulder-grey edge
                 elif abs(d - 0.74) < 0.05:
-                    ch = "Y"
+                    ch = "A"
                 else:
                     ch = "r" if (x + y) % 7 == 0 else "R"
             if ch:

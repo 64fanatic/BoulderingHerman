@@ -179,18 +179,22 @@
       }
     };
   })();
-  // game over jingle - interruptible, so acting on the game over screen cuts it
+  // game over jingle - interruptible, so acting on the game over screen cuts it.
+  // A fresh element per play, like SND: a page-load element whose first play()
+  // fires outside a user gesture gets autoplay-blocked, and the swallowed
+  // rejection was why the jingle never sounded.
   var OVER_SFX = (function () {
-    var el = new Audio("assets/sfx/tuomas_data-game-over-39-199830.mp3");
-    el.volume = 0.7;
+    var FILE = "assets/sfx/tuomas_data-game-over-39-199830.mp3";
+    var vol = 0.7, el = null;
     return {
       play: function () {
-        try { el.currentTime = 0; } catch (e) {}
+        el = new Audio(FILE);
+        el.volume = Math.min(1, Math.max(0, vol));
         var p = el.play();
         if (p && p.catch) p.catch(function () {});
       },
-      cut: function () { try { el.pause(); el.currentTime = 0; } catch (e) {} },
-      volume: function (v) { el.volume = Math.min(1, Math.max(0, v)); }
+      cut: function () { if (el) { try { el.pause(); } catch (e) {} el = null; } },
+      volume: function (v) { vol = Math.min(1, Math.max(0, v)); if (el) el.volume = vol; }
     };
   })();
   // audio settings - three dB sliders (music, sound, footsteps), persisted.
@@ -471,7 +475,7 @@
     if (!st) return;
     var avalanche = mode === STATE.DEAD || mode === STATE.OVER;
     if (mode !== STATE.PLAY && !avalanche) return;
-    if (mode === STATE.PLAY) {
+    if (mode === STATE.PLAY && !st.squish) { // frozen: the boulder already has him
       var dx = 0, dy = 0;
       var t = queue.shift();
       if (t) {
@@ -829,8 +833,8 @@
       T_EXIT_R = [makeTile(EXIT_RED_A), makeTile(EXIT_RED_B)], T_KEY = makeTile(KEY_ART);
 
   // title-screen logo - just Herman's weird face, framed by a red royal robe:
-  // frilly gold-laced edge, curtain folds, a lace hem ring and a serrated gold
-  // ruff collar around the face. No body parts.
+  // frilly boulder-grey edge, curtain folds, a grey hem ring and a serrated
+  // stone ruff collar around the face, like a rock about to smush him.
   var LOGO_SCALE = 6;
   var LOGO = (function () {
     var W = 34, H = 26, cx = 16.5, cy = 12.5;
@@ -847,15 +851,15 @@
       var ruffPt = (Math.floor((ang + Math.PI) / (Math.PI / 5)) % 2) === 0;  // 10 ruff points
       var rEdge = ruffPt ? 1.0 : 0.82;
       var ch = null;
-      if (D2 <= rEdge && D2 >= 0.68) {              // gold ruff collar around the face
-        ch = D2 > rEdge - 0.15 ? "Y" : (((x + y) % 2) ? "O" : "Y");
+      if (D2 <= rEdge && D2 >= 0.68) {              // boulder ruff collar around the face
+        ch = D2 > rEdge - 0.15 ? "A" : (((x + y) % 2) ? "a" : "A");
       } else if (D2 < 0.68 && D <= edge) {          // robe behind the face window
-        if (Math.abs(D - 0.74) < 0.05) ch = "Y";     // lace hem ring
-        else if (Math.abs(D - 0.5) < 0.06 && (x + 3 * y) % 6 === 0) ch = "Y"; // gold scrollwork
+        if (Math.abs(D - 0.74) < 0.05) ch = "A";     // stone hem ring
+        else if (Math.abs(D - 0.5) < 0.06 && (x + 3 * y) % 6 === 0) ch = "A"; // stone scrollwork
         else ch = ((x + y) % 7 === 0) ? "r" : "R";  // red drape with folds
       } else if (D <= edge) {                       // robe in front
-        if (D > edge - 0.12) ch = "Y";              // frilly gold-laced edge
-        else if (Math.abs(D - 0.74) < 0.05) ch = "Y";
+        if (D > edge - 0.12) ch = "A";              // frilly boulder-grey edge
+        else if (Math.abs(D - 0.74) < 0.05) ch = "A";
         else ch = ((x + y) % 7 === 0) ? "r" : "R";
       }
       if (ch) grid[y][x] = ch;
@@ -875,7 +879,17 @@
       var ch = grid[y][x];
       if (ch !== ".") { g.fillStyle = PAL[ch]; g.fillRect(x - x0, y - y0, 1, 1); }
     }
-    return { url: c.toDataURL(), w: c.width, h: c.height };
+    return { url: c.toDataURL(), w: c.width, h: c.height, c: c };
+  })();
+  // the icon doubles as Herman's squish-by-boulder tile: the boulder-grey robe
+  // reads as a rock flattening his face. Halved onto a tile, nearest-neighbor.
+  var T_SQUISH = (function () {
+    var c = document.createElement("canvas"); c.width = TS; c.height = TS;
+    var g = c.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    var w2 = Math.round(LOGO.w / 2), h2 = Math.round(LOGO.h / 2);
+    g.drawImage(LOGO.c, 0, Math.floor((TS - h2) / 2), w2, h2);
+    return c;
   })();
 
   function render(t) {
@@ -901,7 +915,9 @@
       }
     }
     if (mode === STATE.PLAY || mode === STATE.PAUSE) {
-      ctx.drawImage(T_HERMAN, st.px * TS, st.py * TS);
+      if (st.squish) { // boulder overhead: flash the squish tile over Herman, alternating per tick
+        ctx.drawImage(st.squish.t % 2 ? T_SQUISH : T_HERMAN, st.px * TS, st.py * TS);
+      } else ctx.drawImage(T_HERMAN, st.px * TS, st.py * TS);
     }
     hLevel.textContent = game.level;
     hDia.textContent = st ? st.collected : 0;

@@ -1,6 +1,7 @@
 var W = 40, H = 22, TS = 16;
 var E = " ", D = ".", S = "#", K = "B", O = "o", M = "*", X = "X", F = "F", B = "b", KY = "y";
 var TICK = 140;
+var SQUISH_TICKS = 3; // a boulder landing on Herman hangs overhead this many ticks, so the squish flash reads
 
 function mulberry32(a) {
   return function () {
@@ -196,7 +197,7 @@ function mkState(data) {
     g: g, px: data.px, py: data.py, ex: data.ex, ey: data.ey,
     needed: data.needed, time: data.time, collected: 0,
     keys: 0, needKeys: data.needKeys || 0,
-    enemies: enemies, dead: false, done: false,
+    enemies: enemies, dead: false, done: false, squish: null,
     fall: fall // fall[y][x]: true while the boulder at (x,y) has momentum
   };
 }
@@ -230,11 +231,17 @@ function physics(st) {
       if (below === E) {
         if (st.px === x && st.py === y + 1) {
           if (falling) {
-            // momentum carries the boulder into Herman: squash, no explosion
-            g[y][x] = E; g[y + 1][x] = O;
-            st.fall[y][x] = false; st.fall[y + 1][x] = false;
-            st.dead = true;
-            ev.crush = true; ev.moved++;
+            // momentum carries the boulder into Herman: squash, no explosion.
+            // The landing is held off for SQUISH_TICKS ticks so the squish
+            // flash is visible; the UI freezes input while st.squish is set.
+            if (!st.squish) st.squish = { x: x, y: y + 1, t: SQUISH_TICKS };
+            else if (st.squish.x === x && st.squish.y === y + 1 && --st.squish.t <= 0) {
+              st.squish = null;
+              g[y][x] = E; g[y + 1][x] = O;
+              st.fall[y][x] = false; st.fall[y + 1][x] = false;
+              st.dead = true;
+              ev.crush = true; ev.moved++;
+            }
           }
           // else: a boulder dug free directly above Herman waits on his head;
           // it only starts falling once he steps out of the way
