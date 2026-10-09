@@ -26,7 +26,7 @@
   }
 
   function show(title, msg, color) {
-    ovTitle.textContent = title; ovTitle.style.color = color || "#f55";
+    ovTitle.textContent = title; ovTitle.style.color = color || "#f00";
     ovMsg.innerHTML = msg;
     overlay.classList.remove("hidden");
   }
@@ -51,7 +51,7 @@
     } else {
       msg += "<br><br><span style='color:#fff'>SPACE &mdash; start</span>";
     }
-    show("BOULDER HERMAN", msg, "#8f8");
+    show("BOULDER HERMAN", msg, "#0f0");
   }
 
   function onDeath() {
@@ -60,11 +60,11 @@
       mode = STATE.OVER;
       save();
       show("GAME OVER", "The cave claimed another Herman.<br>Final score: " + game.score +
-        "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#f55");
+        "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#f00");
     } else {
       mode = STATE.DEAD;
       show("SPLAT!", "Lives left: " + game.lives +
-        "<br><br><span class='blink'>SPACE &mdash; retry cave " + game.level + "</span>", "#fa0");
+        "<br><br><span class='blink'>SPACE &mdash; retry cave " + game.level + "</span>", "#ff0");
     }
   }
 
@@ -74,13 +74,13 @@
     if (game.level >= 100) {
       mode = STATE.WIN;
       show("YOU WIN!", "All 100 caves cleared. Herman can finally rest.<br>Final score: " + game.score +
-        "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#ff5");
+        "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#ff0");
       return;
     }
     mode = STATE.DONE;
     show("CAVE " + game.level + " CLEARED", "Time bonus: " + (Math.floor(st.time) * 5) +
       "<br>Score: " + game.score +
-      "<br><br><span class='blink'>SPACE &mdash; enter cave " + (game.level + 1) + "</span>", "#5f5");
+      "<br><br><span class='blink'>SPACE &mdash; enter cave " + (game.level + 1) + "</span>", "#0f0");
   }
 
   function tick() {
@@ -113,102 +113,185 @@
   }
 
   // ---- rendering ----
-  function tileDirt(x, y) {
-    ctx.fillStyle = "#6b4a2b";
-    ctx.fillRect(x, y, TS, TS);
-    ctx.fillStyle = "#7d5936";
-    ctx.fillRect(x + 2, y + 2, 3, 3); ctx.fillRect(x + 9, y + 6, 3, 3);
-    ctx.fillRect(x + 5, y + 10, 3, 3); ctx.fillRect(x + 11, y + 12, 2, 2);
+  // 16-color VGA style, tiles traced pixel-for-pixel from the classic look
+  var PAL = {
+    K: "#000", O: "#808000", R: "#800000", r: "#f00", G: "#0f0", g: "#008000",
+    A: "#808080", a: "#646464", Y: "#ff0", N: "#000080", B: "#00f", W: "#f0f0f0", w: "#fff"
+  };
+  var DIRT_ART = [
+    "KORYRgRrgORgRORO",
+    "OrgRwRgOOgrRGrOK",
+    "KOrGgOROROROgORg",
+    "OROrOOrOrOOGrROK",
+    "RYgOROgORORORORG",
+    "KRgrOrOgrROrOrGr",
+    "ROROgORORORORORK",
+    "OROROrOrOGOROrOR",
+    "KOrGRORORORrRGRr",
+    "ORORrROGOrOGOrOK",
+    "ROROOOrOROOrRGKO",
+    "KROGrRGRORGRKrKR",
+    "OOrOROrORrROrORK",
+    "KRORrRORORKgKRKg",
+    "KOOOROOrgKrOgKRO",
+    "KRrROrORORgKOROK"
+  ];
+  var BRICK_ART = [
+    "KKKKKKKKKKKKKKKK",
+    "RrRKRrrRrRrKrrRr",
+    "RRRKrRRrRRRKrRrR",
+    "RRRKrRRRRRRKrRRR",
+    "KKKKKKKKKKKKKKKK",
+    "rrRrRrRKrrRrRrRK",
+    "rRrRRRRKrRrRRRRK",
+    "rRRRRRRKRRRRRRRK",
+    "KKKKKKKKKKKKKKKK",
+    "RrRKRrrRrRrKrrRr",
+    "RRRKrRRrRRRKrRrR",
+    "RRRKrRRRRRRKrRRR",
+    "KKKKKKKKKKKKKKKK",
+    "rrRrRrRKrrRrRrRK",
+    "rRrRRRRKrRrRRRRK",
+    "rRRRRRRKRRRRRRRK"
+  ];
+  var FLOWER_ART = [
+    "KKNBNBNBNBNBNBKK",
+    "KNBNBNBYYYBNBKBK",
+    "NBKBNYYYYYYYNBKB",
+    "BNBNYYrrrrrYYNBN",
+    "NBNYYYrrrrrYYYNB",
+    "BNBNYYrrrrrYYNBN",
+    "NBNBNYYYYYYYNBNB",
+    "BNBYBNBYYYBNYNBN",
+    "NBYYNBNGGBBYYBNB",
+    "YYrrYNBGGYYrrYBN",
+    "NYrrYYNGGNYrrYYB",
+    "BNYYBNBGGBBYYNBN",
+    "NBYGNBNGGNBNGBNB",
+    "BNBGBggGGggBGNBN",
+    "KggGgggGGgggGggK",
+    "KKggggggggggggKK"
+  ];
+  var BOULDER_ART = [
+    "KKKKAAKAAAAAKKKK",
+    "KKKAKAAAAAKAAKKK",
+    "KKAAAAAAAAAAKAKK",
+    "KAAAAAAAAAAAAAAK",
+    "AAAAAAAAAAAKAKAA",
+    "AAAAAAAAAAAAAKAA",
+    "AAAAAAAAAAAAKAAA",
+    "AAAAAAAAAAAAAAAA",
+    "AAAAAAAAAAKAAKAK",
+    "AAAAAAAAAAAKKAKA",
+    "AAAAAAAAAKAAKAAA",
+    "AAAAAAAKAAAKAAKA",
+    "KAAAAAKAKKAAKAAK",
+    "KKAAAKAAKAKKAKKK",
+    "KKKAAAAKAKAAAKKK",
+    "KKKKAKAAKAKAKKKK"
+  ];
+  var HERMAN_ART = [
+    "................",
+    "....gggggggg....",
+    "...gGGGGGGGGGg..",
+    "...gGGGGGGGGGg..",
+    "...gGGKKGKKGGg..",
+    "...gGGKWGKWGGg..",
+    "...gGGGGGGGGGg..",
+    "...gGGKKKKGGGg..",
+    "...gGGGGGGGGGg..",
+    "..gGGGGGGGGGGg..",
+    "..gGGrrrrrrGGg..",
+    "..gGGGGGGGGGGg..",
+    "...gGGGGGGGGg...",
+    "...gGGg..gGGg...",
+    "....gg....gg....",
+    "................"
+  ];
+  var FLY_A = [
+    "................",
+    "...KKKKKKKKKK...",
+    "..KrrrrrrrrrrK..",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrKKrrrrKKrrK.",
+    ".KrrWKrrrrKWrrK.",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrrrrrrrrrrrK.",
+    "..KrrrrrrrrrrK..",
+    "...KKKKKKKKKK...",
+    "................",
+    "................",
+    "................",
+    "................"
+  ];
+  var FLY_B = FLY_A.map(function (row, i) {
+    return i === 4 ? ".KrrrrrrrrrrrrK." : i === 5 ? ".KrrKKrrrrKKrrK." : row;
+  });
+  var BUT_A = [
+    "................",
+    "...OOOOOOOOOO...",
+    "..OYYYYYYYYYYO..",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYKKYYYYKKYYO.",
+    ".OYYKWYYYYKWYYO.",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYYYYYYYYYYYO.",
+    "..OYYYYYYYYYYO..",
+    "...OOOOOOOOOO...",
+    "................",
+    "................",
+    "................",
+    "................"
+  ];
+  var BUT_B = BUT_A.map(function (row, i) {
+    return i === 4 ? ".OYYYYYYYYYYYYO." : i === 5 ? ".OYYKKYYYYKKYYO." : row;
+  });
+  var EXIT_ART = [
+    "................",
+    ".KKKKKKKKKKKKK..",
+    ".KRRRRRRRRRRRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrKrrRK..",
+    ".KRrrrrrrKrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRRRRRRRRRRRK..",
+    ".KKKKKKKKKKKKK..",
+    "................",
+    "................"
+  ];
+  function recolor(art, map) {
+    return art.map(function (row) {
+      return row.split("").map(function (c) { return map[c] || c; }).join("");
+    });
   }
-  function tileSteel(x, y) {
-    ctx.fillStyle = "#555";
-    ctx.fillRect(x, y, TS, TS);
-    ctx.fillStyle = "#888";
-    ctx.fillRect(x, y, TS, 3); ctx.fillRect(x, y, 3, TS);
-    ctx.fillStyle = "#333";
-    ctx.fillRect(x, y + TS - 3, TS, 3); ctx.fillRect(x + TS - 3, y, 3, TS);
+  var EXIT_OPEN = [recolor(EXIT_ART, { R: "Y", r: "Y" }), recolor(EXIT_ART, { R: "W", r: "W" })];
+  function makeTile(art) {
+    var c = document.createElement("canvas");
+    c.width = TS; c.height = TS;
+    var g = c.getContext("2d");
+    for (var y = 0; y < art.length; y++) {
+      for (var x = 0; x < art[y].length; x++) {
+        var ch = art[y][x];
+        if (ch === ".") continue;
+        g.fillStyle = PAL[ch];
+        g.fillRect(x, y, 1, 1);
+      }
+    }
+    return c;
   }
-  function tileBrick(x, y) {
-    ctx.fillStyle = "#8a3b2a";
-    ctx.fillRect(x, y, TS, TS);
-    ctx.strokeStyle = "#5c2418";
-    ctx.lineWidth = 1;
-    ctx.strokeRect(x + 0.5, y + 0.5, TS - 1, TS - 1);
-    ctx.beginPath();
-    ctx.moveTo(x, y + 8); ctx.lineTo(x + TS, y + 8);
-    ctx.moveTo(x + 8, y); ctx.lineTo(x + 8, y + 8);
-    ctx.moveTo(x + 4, y + 8); ctx.lineTo(x + 4, y + TS);
-    ctx.moveTo(x + 12, y + 8); ctx.lineTo(x + 12, y + TS);
-    ctx.stroke();
-  }
-  function tileRound(x, y, fill, edge) {
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.arc(x + TS / 2, y + TS / 2, TS / 2 - 1, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = edge;
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.beginPath();
-    ctx.arc(x + TS / 2 - 3, y + TS / 2 - 3, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  function tileDiamond(x, y) {
-    ctx.fillStyle = "#0ff";
-    ctx.shadowColor = "#0ff"; ctx.shadowBlur = 6;
-    ctx.beginPath();
-    ctx.moveTo(x + TS / 2, y + 2); ctx.lineTo(x + TS - 3, y + TS / 2);
-    ctx.lineTo(x + TS / 2, y + TS - 2); ctx.lineTo(x + 3, y + TS / 2);
-    ctx.closePath(); ctx.fill();
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(255,255,255,0.5)";
-    ctx.beginPath();
-    ctx.moveTo(x + TS / 2, y + 4); ctx.lineTo(x + TS / 2 + 3, y + TS / 2);
-    ctx.lineTo(x + TS / 2, y + TS / 2 + 2); ctx.closePath(); ctx.fill();
-  }
-  function tileExit(x, y, open, t) {
-    ctx.fillStyle = open ? (Math.floor(t * 6) % 2 ? "#fff" : "#fa0") : "#412";
-    ctx.fillRect(x + 2, y + 2, TS - 4, TS - 4);
-    ctx.strokeStyle = "#803";
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x + 2, y + 2, TS - 4, TS - 4);
-    if (open) { ctx.fillStyle = "#000"; ctx.fillRect(x + 7, y + 7, 2, 5); }
-  }
-  function tileFly(x, y, t, type) {
-    var c = type === F ? "#f40" : "#dd0";
-    ctx.fillStyle = c;
-    ctx.beginPath();
-    ctx.moveTo(x + TS / 2, y + 3); ctx.lineTo(x + TS - 3, y + TS / 2);
-    ctx.lineTo(x + TS / 2, y + TS - 3); ctx.lineTo(x + 3, y + TS / 2);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = "#000";
-    var s = 1 + (Math.floor(t * 8) % 2);
-    ctx.fillRect(x + TS / 2 - 4, y + TS / 2 - s, 2, 2 * s);
-    ctx.fillRect(x + TS / 2 + 2, y + TS / 2 - s, 2, 2 * s);
-  }
-  function tileHerman(x, y, t) {
-    ctx.fillStyle = "#cfd2c8";
-    ctx.beginPath();
-    ctx.ellipse(x + TS / 2, y + TS / 2 + 1, 7, 8, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#111";
-    ctx.beginPath();
-    ctx.ellipse(x + TS / 2 - 3, y + 6, 2.5, 3, 0, 0, Math.PI * 2);
-    ctx.ellipse(x + TS / 2 + 3, y + 6, 2.5, 3, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#f22";
-    ctx.fillRect(x + TS / 2 - 3, y + 6, 1.5, 1.5);
-    ctx.fillRect(x + TS / 2 + 3, y + 6, 1.5, 1.5);
-    ctx.strokeStyle = "#333";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.arc(x + TS / 2, y + 8, 3.5, 0.2 * Math.PI, 0.8 * Math.PI);
-    ctx.stroke();
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(x + TS / 2 - 3, y + 10, 1.5, 2);
-    ctx.fillRect(x + TS / 2 + 1.5, y + 10, 1.5, 2);
-  }
+  var T_DIRT = makeTile(DIRT_ART), T_BRICK = makeTile(BRICK_ART), T_FLOWER = makeTile(FLOWER_ART),
+      T_BOULDER = makeTile(BOULDER_ART), T_HERMAN = makeTile(HERMAN_ART),
+      T_FLY = [makeTile(FLY_A), makeTile(FLY_B)], T_BUT = [makeTile(BUT_A), makeTile(BUT_B)],
+      T_EXIT = [makeTile(EXIT_ART), makeTile(EXIT_OPEN[0]), makeTile(EXIT_OPEN[1])];
 
   function render(t) {
     if (!st) return;
@@ -217,16 +300,18 @@
     var open = st.collected >= st.needed;
     for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
       var tt = st.g[y][x], px = x * TS, py = y * TS;
-      if (tt === D) tileDirt(px, py);
-      else if (tt === S) tileSteel(px, py);
-      else if (tt === K) tileBrick(px, py);
-      else if (tt === O) tileRound(px, py, "#8a8276", "#565049");
-      else if (tt === M) tileDiamond(px, py);
-      else if (tt === X) tileExit(px, py, open, t);
-      else if (tt === F || tt === B) tileFly(px, py, t, tt);
+      if (tt === D) ctx.drawImage(T_DIRT, px, py);
+      else if (tt === S || tt === K) ctx.drawImage(T_BRICK, px, py);
+      else if (tt === O) { ctx.drawImage(T_DIRT, px, py); ctx.drawImage(T_BOULDER, px, py); }
+      else if (tt === M) ctx.drawImage(T_FLOWER, px, py);
+      else if (tt === X) ctx.drawImage(open ? T_EXIT[1 + (Math.floor(t * 6) % 2)] : T_EXIT[0], px, py);
+      else if (tt === F || tt === B) {
+        var f = Math.floor(t * 8) % 2;
+        ctx.drawImage(tt === F ? T_FLY[f] : T_BUT[f], px, py);
+      }
     }
     if (mode === STATE.PLAY || mode === STATE.PAUSE) {
-      tileHerman(st.px * TS, st.py * TS, t);
+      ctx.drawImage(T_HERMAN, st.px * TS, st.py * TS);
     }
     hLevel.textContent = game.level;
     hDia.textContent = st ? st.collected : 0;
