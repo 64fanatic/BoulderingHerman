@@ -83,6 +83,8 @@ For the curious and the code-inclined:
 - `tools/make_background.py` — regenerate that background
 - `assets/frame.png` — the cobble-and-vine border around the game window
 - `tools/make_frame.py` — regenerate that border
+- `assets/hud_cobble.gif` — the rotating brick-red cobblestone HUD bar
+- `tools/make_hud_gif.js` — regenerate that bar
 - `assets/sfx/` — the boulder sounds: rumble, thud, splat, and Herman's steps
 - `tools/make_sfx.py` — synthesize those sounds from scratch (royalty-free by construction)
 - `readme/images/` — full-size development screenshots; `tools/make_thumbs.py` shrinks them into `readme/images/thumbs/` for the grid above
