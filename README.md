@@ -14,6 +14,15 @@ python3 -m http.server
 
 and mosey on over to http://localhost:8000.
 
+## A taste of the caves
+
+![Herman mid-dig in cave 1, boulders looming overhead](readme/images/ingame1.png)
+
+Herman contemplates his next move in cave 1. That's him in the corner — the pale fellow
+with the fashionably distressed face. See the cyan diamonds? He wants those.
+See the boulders hanging around overhead? Those want *him*. This is the whole game,
+really: a series of increasingly poor decisions about gravity.
+
 ## Controls
 
 - **Move:** arrow keys or WASD. Herman digs where he walks.
