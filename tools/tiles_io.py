@@ -46,15 +46,19 @@ TILES = [
     ("dirt.png", "DIRT_ART"),
     ("brick.png", "BRICK_ART"),
     ("flower.png", "FLOWER_ART"),
+    ("key.png", "KEY_ART"),
     ("boulder.png", "BOULDER_ART"),
     ("herman.png", "HERMAN_ART"),
     ("firefly_a.png", "FLY_A"),
     ("firefly_b.png", "FLY_B"),
     ("butterfly_a.png", "BUT_A"),
     ("butterfly_b.png", "BUT_B"),
-    ("exit_closed.png", "EXIT_ART"),
-    ("exit_open_a.png", "EXIT_OPEN_A"),
-    ("exit_open_b.png", "EXIT_OPEN_B"),
+    ("exit_locked.png", "EXIT_LOCKED"),
+    ("exit_locked_keys.png", "EXIT_LOCKED_KEYS"),
+    ("exit_yellow_a.png", "EXIT_YELLOW_A"),
+    ("exit_yellow_b.png", "EXIT_YELLOW_B"),
+    ("exit_red_a.png", "EXIT_RED_A"),
+    ("exit_red_b.png", "EXIT_RED_B"),
 ]
 
 
@@ -85,7 +89,7 @@ def replace_array(src, name, rows):
 def export():
     src = open(MAIN_JS).read()
     os.makedirs(TILES_DIR, exist_ok=True)
-    sheet = Image.new("RGBA", (16 * 4, 16 * 3), (0, 0, 0, 0))
+    sheet = Image.new("RGBA", (16 * 4, 16 * 4), (0, 0, 0, 0))
     for i, (fname, arr) in enumerate(TILES):
         rows = read_array(src, arr)
         im = Image.new("RGBA", (16, 16), (0, 0, 0, 0))

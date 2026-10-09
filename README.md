@@ -24,7 +24,7 @@ fractional stretching in this cave.
 
 Herman contemplates his next move in cave 1. That's him in the corner — the pale
 fellow with the purple lips, the grin that has seen things, and the nose he is
-very proud of. See the cyan diamonds? He wants those.
+very proud of. See the flowers? He wants those.
 See the boulders hanging around overhead? Those want *him*. This is the whole game,
 really: a series of increasingly poor decisions about gravity.
 
@@ -38,7 +38,9 @@ really: a series of increasingly poor decisions about gravity.
 
 ## Rules
 
-Dig through dirt. Shove boulders around like you own the place. Collect diamonds until the exit door deigns to open, then stroll through it like the champion you are.
+Dig through dirt. Shove boulders around like you own the place. Collect flowers until the exit door deigns to open, then stroll through it like the champion you are. The doors ask for more flowers the deeper you go — and from cave 11 on they turn red and demand three keys on top of it, so keep your eyes open for the little gold things.
+
+A locked door is a gray door. It only wakes up — flashing yellow, or flashing red with its key slots — the moment you can actually walk through it.
 
 A word on boulders, because they have rules now. Dig out the dirt under one and stand
 there, and it will hover over your head, politely waiting. Step out from under it,
@@ -50,7 +52,12 @@ to watch the avalanche you caused behind the dimmed game-over screen before pres
 space to try again.
 
 The butterflies have a party trick, though: pop one with a boulder and it bursts into
-diamonds. Decide for yourself whether that makes it better or worse.
+flowers. Decide for yourself whether that makes it better or worse.
+
+And mind the cave itself: the generator is out to get you. It balances boulders on
+tempting out-of-the-way flowers and posts a sniper rock in the column above the exit
+door, waiting for someone who isn't paying attention. The walls thicken and the
+boulders pile up as the caves get deeper, and the clock gets meaner too.
 
 ## Structure
 
@@ -62,9 +69,11 @@ For the curious and the code-inclined:
 - `src/main.js` — the face: rendering, input, and the game state machine that keeps it all honest
 - `tiles/` — every 16x16 sprite as an editable PNG, plus the palette
 - `tools/tiles_io.py` — bake your tile edits into the game (see `tiles/README.md`)
-- `assets/cave_bg.gif` — the animated mossy-rocks-and-water background
+- `assets/cave_bg.gif` — the animated mossy-cobblestone-and-water background
 - `tools/make_background.py` — regenerate that background
-- `assets/sfx/` — the boulder sounds: rumble, thud, splat
+- `assets/frame.png` — the cobble-and-vine border around the game window
+- `tools/make_frame.py` — regenerate that border
+- `assets/sfx/` — the boulder sounds: rumble, thud, splat, and Herman's steps
 - `tools/make_sfx.py` — synthesize those sounds from scratch (royalty-free by construction)
 
 Feeling artistic? Every sprite in the game is a 16x16 PNG you can redraw in

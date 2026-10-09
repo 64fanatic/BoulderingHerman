@@ -119,7 +119,15 @@ def splat():
     return mix(squelch, drop, 0.55)
 
 
+def step():
+    n = int(SR * 0.055)
+    crunch = lowpass(white_noise(n), 4)
+    env = envelope(n, SR * 0.003, n, curve=1.6)
+    return [c * e * 0.5 for c, e in zip(crunch, env)]
+
+
 if __name__ == "__main__":
     write_wav("roll.wav", roll())
     write_wav("thud.wav", thud())
     write_wav("splat.wav", splat())
+    write_wav("step.wav", step())

@@ -1,5 +1,5 @@
 var W = 40, H = 22, TS = 16;
-var E = " ", D = ".", S = "#", K = "B", O = "o", M = "*", X = "X", F = "F", B = "b";
+var E = " ", D = ".", S = "#", K = "B", O = "o", M = "*", X = "X", F = "F", B = "b", KY = "y";
 var TICK = 140;
 
 function mulberry32(a) {
@@ -20,7 +20,7 @@ function genLevel(n) {
       var row = [];
       for (x = 0; x < W; x++) {
         if (x === 0 || y === 0 || x === W - 1 || y === H - 1) row.push(S);
-        else row.push(rnd() < 0.20 ? E : D);
+        else row.push(rnd() < 0.18 + Math.min(0.10, n * 0.001) ? E : D);
       }
       g.push(row);
     }
@@ -35,12 +35,14 @@ function genLevel(n) {
         sx = Math.max(1, Math.min(W - 2, sx)); sy = Math.max(1, Math.min(H - 2, sy));
       }
     }
+    var bP = 0.10 + Math.min(0.10, n * 0.0012);       // boulders get denser...
+    var kP = 0.015 + Math.min(0.12, n * 0.0015);     // ...and so do the brick walls
     for (y = 1; y < H - 1; y++) for (x = 1; x < W - 1; x++) {
       if (g[y][x] === S) continue;
       var r = rnd();
-      if (r < 0.10) g[y][x] = O;
-      else if (r < 0.13) g[y][x] = M;
-      else if (r < 0.145) g[y][x] = K;
+      if (r < bP) g[y][x] = O;
+      else if (r < bP + 0.03) g[y][x] = M;
+      else if (r < bP + 0.03 + kP) g[y][x] = K;
     }
     var tries = 0, px = 3, py = 3;
     do { px = 2 + Math.floor(rnd() * (W - 4)); py = 2 + Math.floor(rnd() * (H - 4)); tries++; }
@@ -76,7 +78,7 @@ function genLevel(n) {
         }
       }
     }
-    var needed = Math.min(18, 3 + Math.floor(n / 6));
+    var needed = Math.min(25, 5 + Math.floor(n * 0.3));
     if (!seen[ey][ex]) continue;
     if (reachD < needed + 3) {
       var cand = reachCells.filter(function (c2) { return g[c2[1]][c2[0]] === D; });
@@ -87,8 +89,8 @@ function genLevel(n) {
       }
       if (reachD < needed + 3) continue;
     }
-    var nf = Math.min(4, Math.floor(n / 18));
-    var nb = Math.min(4, Math.max(0, Math.floor((n - 25) / 18)));
+    var nf = Math.min(5, Math.floor(n / 14));
+    var nb = Math.min(5, Math.max(0, Math.floor((n - 20) / 14)));
     var spots = reachCells.filter(function (c2) {
       var gx = c2[0], gy = c2[1];
       return g[gy][gx] === E && Math.abs(gx - px) + Math.abs(gy - py) >= 6;
@@ -101,6 +103,38 @@ function genLevel(n) {
       g[sp[1]][sp[0]] = i < nf ? F : B;
     }
     if (!ok) continue;
+    // keys: from cave 11 the exit door demands three of them, hidden on reachable ground
+    if (n > 10) {
+      var keySpots = reachCells.filter(function (c2) {
+        var gx = c2[0], gy = c2[1];
+        return (g[gy][gx] === E || g[gy][gx] === D) && g[gy - 1][gx] === D &&
+          Math.abs(gx - px) + Math.abs(gy - py) >= 5; // dirt lid: nothing can rest on a key
+      });
+      var placedKeys = 0;
+      while (placedKeys < 3 && keySpots.length) {
+        j = Math.floor(rnd() * keySpots.length);
+        var ks = keySpots.splice(j, 1)[0];
+        g[ks[1]][ks[0]] = KY;
+        placedKeys++;
+      }
+      if (placedKeys < 3) continue;
+    }
+    // ambushes: boulders balanced on out-of-the-way flowers, waiting for greedy fingers
+    var trapN = Math.min(4, Math.floor(n / 12));
+    var flowerCells = reachCells.filter(function (c2) {
+      return g[c2[1]][c2[0]] === M && Math.abs(c2[0] - px) + Math.abs(c2[1] - py) >= 8;
+    });
+    for (i = 0; i < trapN && flowerCells.length; i++) {
+      j = Math.floor(rnd() * flowerCells.length);
+      var mc = flowerCells.splice(j, 1)[0];
+      var tx = mc[0], ty = mc[1];
+      if (g[ty - 1][tx] === D && g[ty - 1][tx - 1] !== E && g[ty - 1][tx + 1] !== E) g[ty - 1][tx] = O;
+    }
+    // and one sniper boulder lurking in the column above the exit door
+    if (n >= 15) {
+      var ay = ey - 3;
+      if (ay > 0 && g[ay][ex] === D && g[ay + 1][ex] !== E) g[ay][ex] = O;
+    }
     var probe = mkState({ grid: g, px: px, py: py, ex: ex, ey: ey, needed: needed, time: 1 });
     var safe = true;
     for (var s = 0; s < 40; s++) {
@@ -109,8 +143,8 @@ function genLevel(n) {
       if (probe.dead || probe.g[probe.py][probe.px] !== E) { safe = false; break; }
     }
     if (!safe) continue;
-    var time = Math.max(80, 170 - Math.floor(n * 0.8));
-    return { grid: g, px: px, py: py, ex: ex, ey: ey, needed: needed, time: time };
+    var time = Math.max(75, 165 - Math.floor(n * 0.9));
+    return { grid: g, px: px, py: py, ex: ex, ey: ey, needed: needed, time: time, needKeys: n > 10 ? 3 : 0 };
   }
   // Deterministic fallback cave (should almost never trigger)
   var fr = mulberry32(4242);
@@ -145,9 +179,15 @@ function mkState(data) {
   return {
     g: g, px: data.px, py: data.py, ex: data.ex, ey: data.ey,
     needed: data.needed, time: data.time, collected: 0,
+    keys: 0, needKeys: data.needKeys || 0,
     enemies: enemies, dead: false, done: false,
     fall: fall // fall[y][x]: true while the boulder at (x,y) has momentum
   };
+}
+
+// the exit door unlocks only when the flower quota AND any demanded keys are in hand
+function doorOpen(st) {
+  return st.collected >= st.needed && st.keys >= (st.needKeys || 0);
 }
 
 function explode(st, x, y, dia) {
@@ -167,7 +207,7 @@ function physics(st) {
   for (var y = H - 2; y >= 1; y--) {
     for (var x = 1; x < W - 1; x++) {
       var t = g[y][x];
-      if (t !== O) continue; // only boulders fall; diamonds stay put
+      if (t !== O) continue; // only boulders fall; flowers and keys stay put
       if (moved[key(x, y)]) continue;
       var falling = st.fall[y][x];
       var below = g[y + 1][x];
@@ -196,7 +236,7 @@ function physics(st) {
       } else {
         // resting on an occupied tile
         if (falling) { st.fall[y][x] = false; ev.thud++; }
-        if (below === O || below === M) {
+        if (below === O || below === M || below === KY) {
           // perched on something round: try to roll off it, one tile sideways;
           // after the roll it falls again next tick if the new spot is open below
           var pl = g[y][x - 1], plb = g[y + 1][x - 1];
@@ -255,6 +295,7 @@ function tryMove(st, dx, dy) {
   var t = st.g[ny][nx];
   if (t === D || t === E) { st.g[ny][nx] = E; st.px = nx; st.py = ny; return; }
   if (t === M) { st.g[ny][nx] = E; st.px = nx; st.py = ny; st.collected++; return; }
+  if (t === KY) { st.g[ny][nx] = E; st.px = nx; st.py = ny; st.keys++; return; }
   if (t === O && dy === 0) {
     var bx = nx + dx;
     if (st.g[ny][bx] === E) {
@@ -263,5 +304,5 @@ function tryMove(st, dx, dy) {
     return;
   }
   if (t === F || t === B) { explode(st, st.px, st.py, false); st.dead = true; return; }
-  if (t === X && st.collected >= st.needed) { st.done = true; return; }
+  if (t === X && doorOpen(st)) { st.done = true; return; }
 }

@@ -7,13 +7,17 @@ Every 16x16 game tile lives here as an individual PNG you can edit in
 |------|-------------|
 | `dirt.png` | diggable dirt |
 | `brick.png` | walls (border and interior) |
-| `flower.png` | collectibles (the HUD calls them diamonds) |
+| `flower.png` | collectibles (the HUD calls them flowers) |
+| `key.png` | keys, demanded by doors from cave 11 on |
 | `boulder.png` | falling rocks |
 | `herman.png` | the man himself |
 | `firefly_a.png`, `firefly_b.png` | firefly, two animation frames |
 | `butterfly_a.png`, `butterfly_b.png` | butterfly, two animation frames |
-| `exit_closed.png`, `exit_open_a.png`, `exit_open_b.png` | exit door, closed and flashing-open |
-| `sheet.png` | all tiles in one 4x3 grid, handy for overview |
+| `exit_locked.png` | grayed-out door, flowers still owed |
+| `exit_locked_keys.png` | grayed-out door with three key slots (cave 11+) |
+| `exit_yellow_a.png`, `exit_yellow_b.png` | unlocked door flashing yellow |
+| `exit_red_a.png`, `exit_red_b.png` | unlocked door flashing red with key slots (cave 11+) |
+| `sheet.png` | all tiles in one 4x4 grid, handy for overview |
 | `palette.gpl` | the 16-color game palette |
 
 ## Editing workflow

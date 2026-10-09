@@ -6,32 +6,46 @@
   var ovMsg = document.getElementById("ov-msg");
   var hLevel = document.getElementById("h-level"), hDia = document.getElementById("h-dia"),
       hNeed = document.getElementById("h-need"), hTime = document.getElementById("h-time"),
-      hScore = document.getElementById("h-score"), hLives = document.getElementById("h-lives");
+      hScore = document.getElementById("h-score"), hLives = document.getElementById("h-lives"),
+      hKeys = document.getElementById("h-keys"), hKNeed = document.getElementById("h-kneed"),
+      hudKeys = document.getElementById("hud-keys");
   var hudBar = document.getElementById("hud"), h1El = document.querySelector("h1"),
-      footEl = document.getElementById("foot");
+      footEl = document.getElementById("foot"), frameEl = document.getElementById("frame");
   // scale the game in whole-number multiples only, so pixels stay crisp;
-  // the biggest multiplier that fits the window wins
+  // the biggest multiplier that fits the window wins. Re-checked every frame,
+  // and only the styles for a new multiplier are ever written.
+  var fitK = 0;
   function fit() {
-    var chromeH = h1El.offsetHeight + hudBar.offsetHeight + footEl.offsetHeight + 44;
-    var k = Math.max(1, Math.floor(Math.min(
-      (window.innerWidth - 24) / canvas.width,
-      (window.innerHeight - chromeH) / canvas.height)));
-    canvas.style.width = canvas.width * k + "px";
-    canvas.style.height = canvas.height * k + "px";
-    hudBar.style.width = (canvas.width + 8) * k + "px";
-    overlay.style.fontSize = 15 * k + "px";
+    try {
+      var chromeH = h1El.offsetHeight + hudBar.offsetHeight + footEl.offsetHeight + 36;
+      var k = Math.max(1, Math.floor(Math.min(
+        (window.innerWidth - 24) / canvas.width,
+        (window.innerHeight - chromeH) / canvas.height)));
+      if (k === fitK) return;
+      fitK = k;
+      canvas.style.width = canvas.width * k + "px";
+      canvas.style.height = canvas.height * k + "px";
+      hudBar.style.width = (canvas.width + 8) * k + "px";
+      hudBar.style.fontSize = 13 * k + "px";
+      overlay.style.fontSize = 15 * k + "px";
+      frameEl.style.left = -8 * k + "px";
+      frameEl.style.top = -8 * k + "px";
+      frameEl.style.width = (canvas.width + 16) * k + "px";
+      frameEl.style.height = (canvas.height + 16) * k + "px";
+    } catch (e) {}
   }
   window.addEventListener("resize", fit);
   // boulder sounds - original synthesized effects (see tools/make_sfx.py)
   var SND = (function () {
     var last = {};
-    function play(file, vol, gap) {
+    function play(file, vol, gap, wobble) {
       var now = performance.now();
       if (last[file] && now - last[file] < gap) return;
       last[file] = now;
       try {
         var a = new Audio(file);
         a.volume = vol;
+        if (wobble) a.playbackRate = 0.85 + Math.random() * 0.3; // never the same step twice
         var p = a.play();
         if (p && p.catch) p.catch(function () {});
       } catch (e) {}
@@ -39,7 +53,8 @@
     return {
       move: function () { play("assets/sfx/roll.wav", 0.3, 110); },
       thud: function () { play("assets/sfx/thud.wav", 0.5, 120); },
-      splat: function () { play("assets/sfx/splat.wav", 0.6, 0); }
+      splat: function () { play("assets/sfx/splat.wav", 0.6, 0); },
+      step: function () { play("assets/sfx/step.wav", 0.15, 90, true); }
     };
   })();
   var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6 };
@@ -76,10 +91,11 @@
   function menu() {
     mode = STATE.MENU;
     var sv = load();
-    var msg = "Dig through dirt. Push boulders. Collect diamonds.<br>" +
-      "Grab enough diamonds to open the exit door, then step through.<br>" +
+    var msg = "Dig through dirt. Push boulders. Collect flowers.<br>" +
+      "Grab enough flowers to open the exit door, then step through.<br>" +
       "Falling boulders crush you, fireflies and butterflies alike.<br>" +
-      "Butterflies burst into diamonds when crushed. Fireflies just burst.<br><br>" +
+      "Butterflies burst into flowers when crushed. Fireflies just burst.<br>" +
+      "From cave 11 on, the door also demands 3 keys.<br><br>" +
       "100 caves, each harder than the last.";
     if (sv && sv.level > 1) {
       msg += "<br><br><span style='color:#fff'>SPACE &mdash; new game &nbsp;|&nbsp; C &mdash; continue at cave " + sv.level + "</span>";
@@ -137,7 +153,11 @@
         if (held.d) dy += 1;
         if (dx !== 0) dy = 0;
       }
-      if (dx !== 0 || dy !== 0) tryMove(st, dx, dy);
+      if (dx !== 0 || dy !== 0) {
+        var ox = st.px, oy = st.py;
+        tryMove(st, dx, dy);
+        if (st.px !== ox || st.py !== oy) SND.step();
+      }
       if (st.dead || st.done) {
         st.done ? onComplete() : onDeath();
         return;
@@ -219,6 +239,24 @@
     "BNBGBggGGggBGNBN",
     "KggGgggGGgggGggK",
     "KKggggggggggggKK"
+  ];
+  var KEY_ART = [
+    "................",
+    ".....KKKKK......",
+    ".....KYYYK......",
+    ".....KYKYK......",
+    ".....KYKYK......",
+    ".....KYYYK......",
+    ".....KKKKK......",
+    ".......KYK......",
+    ".......KYK......",
+    ".......KYK......",
+    ".......KYKK.....",
+    ".......KYK......",
+    ".......KKK......",
+    "................",
+    "................",
+    "................"
   ];
   var BOULDER_ART = [
     "KKKKAAKAAAAAKKKK",
@@ -328,25 +366,43 @@
     "................",
     "................"
   ];
-  var EXIT_ART = [
+  var EXIT_LOCKED = [
     "................",
     ".KKKKKKKKKKKKK..",
-    ".KRRRRRRRRRRRK..",
-    ".KRrrrrrrrrrRK..",
-    ".KRrrrrrrrrrRK..",
-    ".KRrrrrrrrrrRK..",
-    ".KRrrrrrrrrrRK..",
-    ".KRrrrrrrKrrRK..",
-    ".KRrrrrrrKrrRK..",
-    ".KRrrrrrrrrrRK..",
-    ".KRrrrrrrrrrRK..",
-    ".KRrrrrrrrrrRK..",
-    ".KRRRRRRRRRRRK..",
+    ".KAAAAAAAAAAAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaKaaAK..",
+    ".KAaaaaaaKaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAAAAAAAAAAAK..",
     ".KKKKKKKKKKKKK..",
     "................",
     "................"
   ];
-  var EXIT_OPEN_A = [
+  var EXIT_LOCKED_KEYS = [
+    "................",
+    ".KKKKKKKKKKKKK..",
+    ".KAAAAAAAAAAAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaKaKaKaaAK..",
+    ".KAaaKaKaKaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAaaaaaaaaaAK..",
+    ".KAAAAAAAAAAAK..",
+    ".KKKKKKKKKKKKK..",
+    "................",
+    "................"
+  ];
+  var EXIT_YELLOW_A = [
     "................",
     ".KKKKKKKKKKKKK..",
     ".KYYYYYYYYYYYK..",
@@ -364,7 +420,7 @@
     "................",
     "................"
   ];
-  var EXIT_OPEN_B = [
+  var EXIT_YELLOW_B = [
     "................",
     ".KKKKKKKKKKKKK..",
     ".KWWWWWWWWWWWK..",
@@ -378,6 +434,42 @@
     ".KWWWWWWWWWWWK..",
     ".KWWWWWWWWWWWK..",
     ".KWWWWWWWWWWWK..",
+    ".KKKKKKKKKKKKK..",
+    "................",
+    "................"
+  ];
+  var EXIT_RED_A = [
+    "................",
+    ".KKKKKKKKKKKKK..",
+    ".KRRRRRRRRRRRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrKrKrKrrRK..",
+    ".KRrrKrKrKrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRrrrrrrrrrRK..",
+    ".KRRRRRRRRRRRK..",
+    ".KKKKKKKKKKKKK..",
+    "................",
+    "................"
+  ];
+  var EXIT_RED_B = [
+    "................",
+    ".KKKKKKKKKKKKK..",
+    ".KrrrrrrrrrrrK..",
+    ".KrRRRRRRRRRrK..",
+    ".KrRRRRRRRRRrK..",
+    ".KrRRRRRRRRRrK..",
+    ".KrRRRRRRRRRrK..",
+    ".KrRRKRKRKRRrK..",
+    ".KrRRKRKRKRRrK..",
+    ".KrRRRRRRRRRrK..",
+    ".KrRRRRRRRRRrK..",
+    ".KrRRRRRRRRRrK..",
+    ".KrrrrrrrrrrrK..",
     ".KKKKKKKKKKKKK..",
     "................",
     "................"
@@ -399,20 +491,27 @@
   var T_DIRT = makeTile(DIRT_ART), T_BRICK = makeTile(BRICK_ART), T_FLOWER = makeTile(FLOWER_ART),
       T_BOULDER = makeTile(BOULDER_ART), T_HERMAN = makeTile(HERMAN_ART),
       T_FLY = [makeTile(FLY_A), makeTile(FLY_B)], T_BUT = [makeTile(BUT_A), makeTile(BUT_B)],
-      T_EXIT = [makeTile(EXIT_ART), makeTile(EXIT_OPEN_A), makeTile(EXIT_OPEN_B)];
+      T_EXIT_L = makeTile(EXIT_LOCKED), T_EXIT_LK = makeTile(EXIT_LOCKED_KEYS),
+      T_EXIT_Y = [makeTile(EXIT_YELLOW_A), makeTile(EXIT_YELLOW_B)],
+      T_EXIT_R = [makeTile(EXIT_RED_A), makeTile(EXIT_RED_B)], T_KEY = makeTile(KEY_ART);
 
   function render(t) {
     if (!st) return;
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, W * TS, H * TS);
-    var open = st.collected >= st.needed;
+    var open = doorOpen(st), needKeys = st.needKeys > 0;
     for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
       var tt = st.g[y][x], px = x * TS, py = y * TS;
       if (tt === D) ctx.drawImage(T_DIRT, px, py);
       else if (tt === S || tt === K) ctx.drawImage(T_BRICK, px, py);
       else if (tt === O) { ctx.drawImage(T_DIRT, px, py); ctx.drawImage(T_BOULDER, px, py); }
       else if (tt === M) ctx.drawImage(T_FLOWER, px, py);
-      else if (tt === X) ctx.drawImage(open ? T_EXIT[1 + (Math.floor(t * 6) % 2)] : T_EXIT[0], px, py);
+      else if (tt === KY) ctx.drawImage(T_KEY, px, py);
+      else if (tt === X) {
+        if (!open) ctx.drawImage(needKeys ? T_EXIT_LK : T_EXIT_L, px, py);
+        else if (needKeys) ctx.drawImage(T_EXIT_R[Math.floor(t * 6) % 2], px, py);
+        else ctx.drawImage(T_EXIT_Y[Math.floor(t * 6) % 2], px, py);
+      }
       else if (tt === F || tt === B) {
         var f = Math.floor(t * 8) % 2;
         ctx.drawImage(tt === F ? T_FLY[f] : T_BUT[f], px, py);
@@ -427,6 +526,9 @@
     hTime.textContent = st ? Math.max(0, Math.ceil(st.time)) : 0;
     hScore.textContent = game.score;
     hLives.textContent = game.lives;
+    hKeys.textContent = st.keys;
+    hKNeed.textContent = st.needKeys || 0;
+    hudKeys.style.display = st.needKeys ? "" : "none";
   }
 
   var last = performance.now();
@@ -443,6 +545,7 @@
         if (mode !== STATE.PLAY && mode !== STATE.DEAD && mode !== STATE.OVER) { tickAcc = 0; break; }
       }
     }
+    fit(); // cheap: only writes styles when the integer multiplier changes
     render(now / 1000);
     requestAnimationFrame(loop);
   }
