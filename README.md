@@ -58,18 +58,18 @@ out of the same loop — describe the change, let the agent make it, play the ca
 
 ## Gameplay Description:
 
-Dig through dirt, avoid boulders and other surprises. Collect flowers until the exit door deigns to open, and descend deeper still. The doors ask for more flowers the deeper you go — and eventually they demand three keys on top of it, so keep your eyes open for the little gold things.
+Dig through dirt, avoid boulders and other surprises. Collect flowers until the exit door deigns to open, and descend. The doors ask for more flowers the deeper you go — and eventually they demand three keys on top of it, so keep your eyes open.
 
-A locked door is a gray door. When you've unlocked a door it will stat flashing yellow, or flashing red with its key slots — the moment you can actually walk through it.
+A locked door is gray. When you've unlocked a door it will flash yellow, or flashing red with its key slots the moment you can actually walk through it.
 
-A word on boulders because they have rules now. Dig out the dirt under one and stand
+A word on boulders because they have rules. Dig out the dirt under one and stand
 there, and it will hover over your head politely waiting. Step out from under it,
 though, and it drops with a rumble while it rolls and a thud when it lands. If the rock
-perches on something round it tries to slide off sideways, and if a falling boulder
+perches on something round (Flowers count as round) it tries to slide off sideways/diagonal, and if a falling boulder
 crushes you, that's a SPLAT.
 
-The butterflies have a party trick: pop one with a boulder and it bursts into
-flowers. Decide for yourself risk/reward.
+The Butterflies have a party trick: pop one with a boulder and it'll bursts into
+flowers. Fireflies are agressive. Decide for yourself risk/reward.
 
 ## Feeling Artistic?
 

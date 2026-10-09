@@ -209,7 +209,7 @@
       }, 40);
     }
     function sync() {
-      var want = mode === STATE.MENU || mode === STATE.HELP || mode === STATE.LEVELSEL;
+      var want = mode === STATE.MENU || mode === STATE.HELP || mode === STATE.LEVELSEL || mode === STATE.BOARD;
       if (want && !playing) {
         playing = true;
         try { el.currentTime = 0; } catch (e) {}
@@ -511,7 +511,7 @@
     }
     return { frame: frame };
   })();
-  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7, AUDIO: 8, LEVELSEL: 9 };
+  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7, AUDIO: 8, LEVELSEL: 9, BOARD: 10, ENTRY: 11 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3, flowers: 0 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
   var queue = []; // buffered taps, consumed one per tick, so quick presses are never lost
@@ -527,6 +527,70 @@
   }
   function load() {
     try { return JSON.parse(localStorage.getItem(saveKey)); } catch (e) { return null; }
+  }
+
+  // leaderboard - the top 10 runs of all time, arcade style. Kept under its own
+  // localStorage key: the run save is deleted on a game over, the board outlives it.
+  var BOARD_KEY = "boulderdash100board";
+  var board = (function () { // load once; validated so a corrupt save can't break the menu
+    try {
+      var v = JSON.parse(localStorage.getItem(BOARD_KEY));
+      if (v instanceof Array) return v.filter(function (e) {
+        return e && typeof e.score === "number" && /^[A-Z]{3}$/.test(e.name);
+      }).slice(0, 10);
+    } catch (e) {}
+    return [];
+  })();
+  function saveBoard() { try { localStorage.setItem(BOARD_KEY, JSON.stringify(board)); } catch (e) {} }
+  function qualifies(score) { // a place on the board: it isn't full yet, or beats the last row
+    return board.length < 10 || score > board[board.length - 1].score;
+  }
+  var boardHl = null; // the freshly entered row, highlighted on the board
+  function showBoard(hl) {
+    mode = STATE.BOARD;
+    boardHl = hl || null;
+    MENU_MUSIC.sync();
+    renderBoard();
+  }
+  function renderBoard() {
+    var html = "";
+    if (!board.length) html += "<div style='color:#0f0'>THE BOARD IS EMPTY - GO DIG</div>";
+    for (var i = 0; i < board.length; i++) {
+      var e = board[i];
+      html += "<div style='line-height:1.7;color:" + (e === boardHl ? "#ff0" : "#0f0") + "'>" +
+        (i + 1) + ". <span style='display:inline-block;width:3em'>" + e.name + "</span>" +
+        "<span style='display:inline-block;width:6em;text-align:right'>" + e.score + "</span></div>";
+    }
+    show("LEADERBOARD", html, "#ff0");
+    hint("SPACE / ESC - BACK");
+  }
+  // initials entry - the arcade moment: type 3 letters after a run ends
+  var entry = "";
+  function showEntry() {
+    mode = STATE.ENTRY;
+    entry = "";
+    renderEntry();
+  }
+  function renderEntry() {
+    var html = "<div style='color:#fff;margin-bottom:" + (10 * fitK) + "px'>SCORE " + game.score + "</div>" +
+      "<div style='font-size:1.6em;color:#ff0;letter-spacing:.35em'>";
+    for (var i = 0; i < 3; i++) { // typed letters, then a blinking slot at the cursor
+      var c = entry[i] || "_";
+      html += i === entry.length ? "<span class='blink' style='font-family:inherit'>" + c + "</span>" : c;
+      if (i < 2) html += "&nbsp;";
+    }
+    html += "</div><br><span style='color:#fff'>TYPE 3 LETTERS - SPACE SAVES</span>";
+    show("NEW HIGH SCORE", html, "#ff0");
+    hint("TYPE 3 LETTERS | SPACE - SAVE | ESC - SKIP");
+  }
+  function commitEntry() { // the third letter is in: file it and show the board
+    SND.confirm();
+    var row = { name: entry, score: game.score };
+    board.push(row);
+    board.sort(function (a, b) { return b.score - a.score; });
+    board = board.slice(0, 10);
+    saveBoard();
+    showBoard(board.indexOf(row) >= 0 ? row : null);
   }
 
   function show(title, msg, color) {
@@ -558,6 +622,7 @@
     labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3, flowers: 0 }; RATS.reset(); startLevel(1); });
     if (sv && sv.level > 1) labels.push("CONTINUE AT CAVE " + sv.level), acts.push(function () { game = sv; startLevel(sv.level); });
     labels.push("LEVEL SELECT"); acts.push(showLevelSel);
+    labels.push("LEADERBOARD"); acts.push(function () { showBoard(); });
     labels.push("AUDIO"); acts.push(showAudio);
     labels.push("INSTRUCTIONS"); acts.push(showHelp);
     if (menuSel >= labels.length) menuSel = 0;
@@ -705,16 +770,23 @@
 
   function renderAudio() { // three dB sliders plus a sound test row
     var span = -AUDIO.MIN, html = "";
+    // the sliders sit in an inline table: the label, bar and dB columns line up
+    // however wide the font makes each glyph, and the table shrink-wraps so the
+    // block still centers like the rest of the menu
+    html += "<div style='display:inline-table;text-align:left'>";
     for (var i = 0; i < AUDIO_ROWS.length; i++) {
       var key = AUDIO_ROWS[i][0], db = AUDIO.get(key);
       var pos = Math.round((db - AUDIO.MIN) / span * 12); // 12-segment bar
       var bar = "";
       for (var s = 0; s < 12; s++) bar += s < pos ? "\u2588" : "\u2591";
-      html += "<div style='line-height:2.1" + (i === audioSel ? ";color:#fff" : ";color:#0f0") + "'>" +
-        (i === audioSel ? "&raquo; " : "&nbsp;&nbsp;&nbsp;") + AUDIO_ROWS[i][1] +
-        "&nbsp; <span style='color:" + (i === audioSel ? "#ff0" : "#0a0") + "'>" + bar + "</span>" +
-        "&nbsp; " + (db <= AUDIO.MIN ? "MUTE" : db + " dB") + "</div>";
+      html += "<div style='display:table-row;line-height:2.1;color:" + (i === audioSel ? "#fff" : "#0f0") + "'>" +
+        "<div style='display:table-cell;padding-right:1em'>" +
+        (i === audioSel ? "&raquo; " : "&nbsp;&nbsp;&nbsp;") + AUDIO_ROWS[i][1] + "</div>" +
+        "<div style='display:table-cell;color:" + (i === audioSel ? "#ff0" : "#0a0") + "'>" + bar + "</div>" +
+        "<div style='display:table-cell;padding-left:1em'>" + (db <= AUDIO.MIN ? "MUTE" : db + " dB") + "</div>" +
+        "</div>";
     }
+    html += "</div>";
     var onTest = audioSel === AUDIO_ROWS.length;
     html += "<div style='line-height:2.1" + (onTest ? ";color:#fff" : ";color:#0f0") + "'>" +
       (onTest ? "&raquo; " : "&nbsp;&nbsp;&nbsp;") + "SOUND TEST" +
@@ -732,7 +804,9 @@
       OVER_SFX.play();
       try { localStorage.removeItem(saveKey); } catch (e) {} // out of lives: the run is over, the save goes with it
       show("GAME OVER", "The cave claimed another Herman.<br>Final score: " + game.score +
-        "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#f00");
+        "<br><br><span class='blink'>" +
+        (qualifies(game.score) ? "SPACE - RECORD YOUR INITIALS" : "SPACE - BACK TO MENU") +
+        "</span>", "#f00");
     } else {
       mode = STATE.DEAD;
       save(); // lives remaining persist: quitting here resumes at this cave with these lives
@@ -749,7 +823,9 @@
       mode = STATE.WIN;
       MUSIC.stop();
       show("YOU WIN!", "All 100 caves cleared. Herman can finally rest.<br>Final score: " + game.score +
-        "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#ff0");
+        "<br><br><span class='blink'>" +
+        (qualifies(game.score) ? "SPACE - RECORD YOUR INITIALS" : "SPACE - BACK TO MENU") +
+        "</span>", "#ff0");
       return;
     }
     mode = STATE.DONE;
@@ -800,7 +876,13 @@
       enemyStep(st);
       if (st.dead) { onDeath(); return; }
       st.time -= TICK / 1000;
-      if (st.time <= 0) { explode(st, st.px, st.py, false); onDeath(); }
+      if (st.time <= 0) {
+        explode(st, st.px, st.py, false);
+        onDeath();
+        // the clock, not a boulder, killed him: the jingle sounds on every time-out.
+        // STATE.OVER already played it inside onDeath; STATE.DEAD (lives left) would be silent
+        if (mode === STATE.DEAD) OVER_SFX.play();
+      }
     } else {
       // behind the dimmed SPLAT screen the cave keeps going: avalanches are fair entertainment
       enemyStep(st);
@@ -1305,14 +1387,30 @@
       }
       if (levelSel !== prevSel) { SND.select(); renderLevelSel(); }
     }
-    if (k === "Escape" && (mode === STATE.OVER || mode === STATE.WIN)) {
+    if (k === "Escape" && (mode === STATE.OVER || mode === STATE.WIN || mode === STATE.BOARD)) {
       SND.confirm(); OVER_SFX.cut(); menu(); // bail out of the end screen, back to the menu
     }
     if (k === " ") {
       if (mode === STATE.MENU) { SND.confirm(); menuActs[menuSel](); }
       else if (mode === STATE.DEAD) { SND.confirm(); startLevel(game.level); }
       else if (mode === STATE.DONE) { SND.confirm(); startLevel(game.level + 1); }
-      else if (mode === STATE.OVER || mode === STATE.WIN) { SND.confirm(); OVER_SFX.cut(); menu(); }
+      else if (mode === STATE.OVER || mode === STATE.WIN) {
+        SND.confirm(); OVER_SFX.cut();
+        qualifies(game.score) ? showEntry() : menu(); // a board-worthy run asks for initials
+      }
+      else if (mode === STATE.BOARD) { SND.confirm(); menu(); }
+    }
+    if (mode === STATE.ENTRY) { // arcade initials: letters fill the slots, SPACE files the score
+      var up = k.length === 1 ? k.toUpperCase() : "";
+      if (up >= "A" && up <= "Z" && entry.length < 3 && !repeat) {
+        SND.select(); entry += up; renderEntry();
+      } else if (k === "Backspace" && entry.length && !repeat) {
+        SND.select(); entry = entry.slice(0, -1); renderEntry();
+      } else if (k === " " && entry.length === 3 && !repeat) {
+        commitEntry();
+      } else if (k === "Escape" && !repeat) {
+        SND.confirm(); showBoard(); // skip: the score stays off the board
+      }
     }
     if (mode === STATE.PAUSE) { // pause menu: RESUME or QUIT TO MENU
       var prevPause = pauseSel;

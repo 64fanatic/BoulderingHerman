@@ -37,7 +37,7 @@ function winnable(G, px, py, ex, ey, needed, needKeys) {
 // the time budget steps up with the cave's workload: flowers, brick walls and
 // boulder density all grow with the cave number, so deeper caves get more clock
 function levelTime(n) {
-  return n <= 10 ? 60 : n <= 20 ? 90 : n <= 30 ? 120 : 164;
+  return n <= 10 ? 90 : n <= 20 ? 120 : n <= 30 ? 150 : 200;
 }
 
 function genLevel(n) {
