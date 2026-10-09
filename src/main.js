@@ -191,7 +191,7 @@
   var RATS = (function () {
     var SC = 2, TICK = 1 / 30, MAX = 100, LEN = 24; // sprite scale, sim rate, cap, bump distance
     var cv = document.createElement("canvas"), g = cv.getContext("2d");
-    cv.style.cssText = "position:fixed;left:0;top:0;pointer-events:none;z-index:100;image-rendering:pixelated;";
+    cv.style.cssText = "position:fixed;left:0;top:0;pointer-events:none;z-index:100;background:transparent;image-rendering:pixelated;";
     document.body.appendChild(cv);
     var PAL = { g: "#8f8f8f", d: "#5a5a5a", k: "#111111", w: "#dddddd", p: "#cc9999" };
     var ART = {

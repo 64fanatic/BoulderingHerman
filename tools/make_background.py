@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Generate assets/cave_bg.gif - a seamless, looping animated background in the
-game's 16-color palette: a worn cobblestone wall, heavy moss, and water flowing
-diagonally down the rocks. Dark and weathered so it never upstages gameplay.
+"""Generate assets/cave_bg.gif - a seamless, looping animated background in a
+dark cave palette: a worn cobblestone wall, heavy moss, and a single narrow
+stream of water flowing down the rocks. Kept murky so it never upstages gameplay.
 
-The 64x64 tile repeats in both directions; the diagonal streams wrap mod 64, so
+The 64x64 tile repeats in both directions; the diagonal stream wraps mod 64, so
 water flows continuously across tiles. The 8-frame cycle loops seamlessly.
 
 Usage: python3 tools/make_background.py
@@ -15,21 +15,22 @@ from PIL import Image
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "assets", "cave_bg.gif")
 
-# game palette (see tiles/README.md) - kept to the darker end on purpose
+# deliberately murkier than the in-game palette - this is the wall of the cave,
+# not the cave floor the game is played on
 K = (0x00, 0x00, 0x00)   # black - mortar, shadows
-a = (0x64, 0x64, 0x64)   # dark gray - worn stones
-A = (0x80, 0x80, 0x80)   # gray - sparse worn highlights
-G = (0x00, 0xFF, 0x00)   # bright green - moss highlights, leaves
-g = (0x00, 0x80, 0x00)   # dark green - moss
-N = (0x00, 0x00, 0x80)   # navy - still water
-B = (0x00, 0x00, 0xFF)   # blue - flowing water
-W = (0xF0, 0xF0, 0xF0)   # sparkle
+a = (0x46, 0x46, 0x46)   # dark gray - worn stones
+A = (0x58, 0x58, 0x58)   # gray - sparse worn highlights
+G = (0x00, 0x70, 0x00)   # dim green - moss highlights
+g = (0x00, 0x50, 0x00)   # dark green - moss
+N = (0x00, 0x00, 0x44)   # deep navy - still water
+B = (0x00, 0x00, 0x77)   # dim blue - flowing water
+W = (0x90, 0x90, 0x90)   # sparkle
 
 PALETTE = [K, a, A, G, g, N, B, W]
 SIZE = 64
 FRAMES = 8
-# two diagonal streams (down-right at 45 deg), defined mod 64 so they wrap
-STREAMS = [(18, 8), (50, 5)]  # (offset along y-x axis, width)
+# one narrow diagonal stream (down-right at 45 deg), defined mod 64 so it wraps
+STREAMS = [(32, 4)]  # (offset along y-x axis, width)
 
 
 def h(x, y):
