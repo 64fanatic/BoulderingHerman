@@ -78,16 +78,32 @@ function genLevel(n) {
         }
       }
     }
-    var needed = Math.min(25, 5 + Math.floor(n * 0.3));
+    // flower quota: +1 per cave from 5 up to the ceiling of 35 (reached at cave 31,
+    // held through cave 35); every cave after 35 draws a fresh quota of 20-40
+    var needed = n <= 35 ? Math.min(5 + (n - 1), 35) : 20 + Math.floor(rnd() * 21);
+    // the cave holds exactly the quota plus a random 0..7 spare flowers
+    var want = needed + Math.floor(rnd() * 8);
     if (!seen[ey][ex]) continue;
-    if (reachD < needed + 3) {
+    if (reachD < want) {
       var cand = reachCells.filter(function (c2) { return g[c2[1]][c2[0]] === D; });
-      while (reachD < needed + 3 && cand.length) {
+      while (reachD < want && cand.length) {
         j = Math.floor(rnd() * cand.length);
         var cc = cand.splice(j, 1)[0];
         g[cc[1]][cc[0]] = M; reachD++;
       }
-      if (reachD < needed + 3) continue;
+      if (reachD < want) continue;
+    } else if (reachD > want) {
+      var spare = reachCells.filter(function (c2) { return g[c2[1]][c2[0]] === M; });
+      while (reachD > want && spare.length) {
+        j = Math.floor(rnd() * spare.length);
+        var mc = spare.splice(j, 1)[0];
+        g[mc[1]][mc[0]] = D; reachD--;
+      }
+    }
+    // flowers sealed in unreachable pockets don't count toward the budget: trim
+    // them too, so the cave holds exactly the quota plus its 0..7 spares
+    for (y = 1; y < H - 1; y++) for (x = 1; x < W - 1; x++) {
+      if (g[y][x] === M && !seen[y][x]) g[y][x] = D;
     }
     var nf = Math.min(5, Math.floor(n / 14));
     var nb = Math.min(5, Math.max(0, Math.floor((n - 20) / 14)));

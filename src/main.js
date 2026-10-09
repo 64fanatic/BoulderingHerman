@@ -4,12 +4,13 @@
   var overlay = document.getElementById("overlay");
   var ovTitle = document.getElementById("ov-title");
   var ovMsg = document.getElementById("ov-msg");
+  var ovHint = document.getElementById("ov-hint");
   var hLevel = document.getElementById("h-level"), hDia = document.getElementById("h-dia"),
       hNeed = document.getElementById("h-need"), hTime = document.getElementById("h-time"),
       hScore = document.getElementById("h-score"), hLives = document.getElementById("h-lives"),
       hKeys = document.getElementById("h-keys"), hKNeed = document.getElementById("h-kneed"),
       hudKeys = document.getElementById("hud-keys");
-  var hudBar = document.getElementById("hud"), h1El = document.querySelector("h1"),
+  var hudBar = document.getElementById("hud"),
       frameEl = document.getElementById("frame");
   // scale the game in whole-number multiples only, so pixels stay crisp;
   // the biggest multiplier that fits the window wins. Re-checked every frame,
@@ -17,7 +18,7 @@
   var fitK = 0;
   function fit() {
     try {
-      var chromeH = h1El.offsetHeight + hudBar.offsetHeight + 36;
+      var chromeH = hudBar.offsetHeight + 36;
       // 16px of scaled frame overhang: 8 up (clearance so the border never
       // covers the HUD) and 8 down (border hangs below the canvas)
       var k = Math.max(1, Math.floor(Math.min(
@@ -35,6 +36,7 @@
       frameEl.style.top = -8 * k + "px";
       frameEl.style.width = (canvas.width + 16) * k + "px";
       frameEl.style.height = (canvas.height + 16) * k + "px";
+      if (mode === STATE.MENU) renderMenu(); // keep the logo in step with the scale
     } catch (e) {}
   }
   window.addEventListener("resize", fit);
@@ -283,7 +285,7 @@
     }
     return { spawn: spawn, topUp: topUp, frame: frame };
   })();
-  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6 };
+  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
   var queue = []; // buffered taps, consumed one per tick, so quick presses are never lost
@@ -303,6 +305,7 @@
 
   function show(title, msg, color) {
     ovTitle.textContent = title; ovTitle.style.color = color || "#f00";
+    ovMsg.classList.remove("scrolling");
     ovMsg.innerHTML = msg;
     overlay.classList.remove("hidden");
   }
@@ -314,21 +317,59 @@
   }
   function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); MUSIC.start(n); RATS.topUp(n); }
 
+  var menuSel = 0, menuActs = [], helpOff = 0;
+  function hint(txt) { ovHint.textContent = txt; }
+
   function menu() {
     mode = STATE.MENU;
+    renderMenu();
+  }
+
+  function renderMenu() {
     var sv = load();
-    var msg = "Dig through dirt. Push boulders. Collect flowers.<br>" +
+    var labels = [], acts = [];
+    labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3 }; startLevel(1); });
+    if (sv && sv.level > 1) labels.push("CONTINUE AT CAVE " + sv.level), acts.push(function () { game = sv; startLevel(sv.level); });
+    labels.push("INSTRUCTIONS"); acts.push(showHelp);
+    if (menuSel >= labels.length) menuSel = 0;
+    menuActs = acts;
+    var html = "<img src='" + LOGO.url + "' style='width:" + (LOGO.w * LOGO_SCALE * fitK) +
+      "px;image-rendering:pixelated;margin-bottom:" + (8 * fitK) + "px'>";
+    for (var i = 0; i < labels.length; i++) {
+      html += "<div style='color:" + (i === menuSel ? "#fff" : "#0f0") + ";line-height:1.9'>" +
+        (i === menuSel ? "&raquo; " : "&nbsp;&nbsp;&nbsp;") + labels[i] + "</div>";
+    }
+    show("BOULDERING HERMAN AND THE SLOPPY ROCKS", html, "#0f0");
+    hint("SPACE — SELECT");
+  }
+
+  function showHelp() {
+    mode = STATE.HELP;
+    helpOff = 0;
+    show("INSTRUCTIONS",
+      "<div id='help-scroll'>" +
+      "Dig through dirt. Push boulders. Collect flowers.<br>" +
       "Grab enough flowers to open the exit door, then step through.<br>" +
       "Falling boulders crush you, fireflies and butterflies alike.<br>" +
       "Butterflies burst into flowers when crushed. Fireflies just burst.<br>" +
-      "From cave 11 on, the door also demands 3 keys.<br><br>" +
-      "100 caves, each harder than the last.";
-    if (sv && sv.level > 1) {
-      msg += "<br><br><span style='color:#fff'>SPACE &mdash; new game &nbsp;|&nbsp; C &mdash; continue at cave " + sv.level + "</span>";
-    } else {
-      msg += "<br><br><span style='color:#fff'>SPACE &mdash; start</span>";
-    }
-    show("BOULDERING HERMAN AND THE SLOPPY ROCKS", msg, "#0f0");
+      "From cave 11 on, the door also demands 3 keys.<br>" +
+      "100 caves, each harder than the last.<br><br>" +
+      "<span style='color:#fff'>MOVE — arrow keys or WASD</span><br>" +
+      "<span style='color:#fff'>P — pause &nbsp;|&nbsp; R — restart cave</span><br>" +
+      "<span style='color:#fff'>SPACE — select &nbsp;|&nbsp; ESC — back</span>" +
+      "</div>", "#ff0");
+    ovMsg.classList.add("scrolling");
+    scrollHelp(0);
+    hint("ESC — BACK");
+  }
+
+  function scrollHelp(d) { // scroll by whole lines; clamped to the content
+    var inner = document.getElementById("help-scroll");
+    if (!inner) return;
+    var max = Math.max(0, inner.scrollHeight - ovMsg.clientHeight);
+    var step = Math.ceil(parseFloat(getComputedStyle(ovMsg).fontSize) * 1.7);
+    helpOff = Math.max(0, Math.min(max, helpOff + d * step));
+    inner.style.transform = "translateY(" + (-helpOff) + "px)";
   }
 
   function onDeath() {
@@ -725,6 +766,56 @@
       T_EXIT_Y = [makeTile(EXIT_YELLOW_A), makeTile(EXIT_YELLOW_B)],
       T_EXIT_R = [makeTile(EXIT_RED_A), makeTile(EXIT_RED_B)], T_KEY = makeTile(KEY_ART);
 
+  // title-screen logo - just Herman's weird face, framed by a red royal robe:
+  // frilly gold-laced edge, curtain folds, a lace hem ring and a serrated gold
+  // ruff collar around the face. No body parts.
+  var LOGO_SCALE = 6;
+  var LOGO = (function () {
+    var W = 34, H = 26, cx = 16.5, cy = 12.5;
+    var rx = 16, ry = 11.5;   // robe ellipse
+    var rxi = 11, ryi = 7.5;  // ruff collar ellipse
+    var grid = [];
+    for (var y = 0; y < H; y++) { grid.push([]); for (var x = 0; x < W; x++) grid[y].push("."); }
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+      var dx = x - cx, dy = y - cy, ang = Math.atan2(dy, dx);
+      var D = Math.sqrt(dx * dx / (rx * rx) + dy * dy / (ry * ry));
+      var D2 = Math.sqrt(dx * dx / (rxi * rxi) + dy * dy / (ryi * ryi));
+      var fringe = (Math.floor((ang + Math.PI) / (Math.PI / 7)) % 2) === 0;  // 14 fringe points
+      var edge = fringe ? 1.0 : 0.86;
+      var ruffPt = (Math.floor((ang + Math.PI) / (Math.PI / 5)) % 2) === 0;  // 10 ruff points
+      var rEdge = ruffPt ? 1.0 : 0.82;
+      var ch = null;
+      if (D2 <= rEdge && D2 >= 0.68) {              // gold ruff collar around the face
+        ch = D2 > rEdge - 0.15 ? "Y" : (((x + y) % 2) ? "O" : "Y");
+      } else if (D2 < 0.68 && D <= edge) {          // robe behind the face window
+        if (Math.abs(D - 0.74) < 0.05) ch = "Y";     // lace hem ring
+        else if (Math.abs(D - 0.5) < 0.06 && (x + 3 * y) % 6 === 0) ch = "Y"; // gold scrollwork
+        else ch = ((x + y) % 7 === 0) ? "r" : "R";  // red drape with folds
+      } else if (D <= edge) {                       // robe in front
+        if (D > edge - 0.12) ch = "Y";              // frilly gold-laced edge
+        else if (Math.abs(D - 0.74) < 0.05) ch = "Y";
+        else ch = ((x + y) % 7 === 0) ? "r" : "R";
+      }
+      if (ch) grid[y][x] = ch;
+    }
+    var head = HERMAN_ART.slice(0, 8); // the face, no body
+    for (var y = 0; y < head.length; y++) for (var x = 0; x < head[y].length; x++) {
+      if (head[y][x] !== ".") grid[9 + y][9 + x] = head[y][x];
+    }
+    var x0 = W, x1 = 0, y0 = H, y1 = 0; // crop to content
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) if (grid[y][x] !== ".") {
+      if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    }
+    var c = document.createElement("canvas");
+    c.width = x1 - x0 + 1; c.height = y1 - y0 + 1;
+    var g = c.getContext("2d");
+    for (var y = y0; y <= y1; y++) for (var x = x0; x <= x1; x++) {
+      var ch = grid[y][x];
+      if (ch !== ".") { g.fillStyle = PAL[ch]; g.fillRect(x - x0, y - y0, 1, 1); }
+    }
+    return { url: c.toDataURL(), w: c.width, h: c.height };
+  })();
+
   function render(t) {
     if (!st) return;
     ctx.fillStyle = "#000";
@@ -789,21 +880,34 @@
     if (k === "ArrowRight" || k === "d" || k === "D") { held.r = true; if (!e.repeat) tap("r"); }
     if (k === "ArrowUp" || k === "w" || k === "W") { held.u = true; if (!e.repeat) tap("u"); }
     if (k === "ArrowDown" || k === "s" || k === "S") { held.d = true; if (!e.repeat) tap("d"); }
+    if (mode === STATE.MENU && !e.repeat) { // move between items with any movement key
+      var prev = menuSel;
+      if (k === "ArrowUp" || k === "ArrowLeft" || k === "w" || k === "W" || k === "a" || k === "A") {
+        menuSel = (menuSel + menuActs.length - 1) % menuActs.length;
+      } else if (k === "ArrowDown" || k === "ArrowRight" || k === "s" || k === "S" || k === "d" || k === "D") {
+        menuSel = (menuSel + 1) % menuActs.length;
+      }
+      if (menuSel !== prev) { SND.select(); renderMenu(); }
+    }
+    if (mode === STATE.HELP) { // scroll the instructions with up/down
+      if (k === "ArrowUp" || k === "w" || k === "W") { SND.select(); scrollHelp(-1); }
+      else if (k === "ArrowDown" || k === "s" || k === "S") { SND.select(); scrollHelp(1); }
+      else if (k === "Escape") { SND.confirm(); menu(); }
+    }
     if (k === " ") {
-      if (mode === STATE.MENU) { SND.confirm(); game = { level: 1, score: 0, lives: 3 }; startLevel(1); }
+      if (mode === STATE.MENU) { SND.confirm(); menuActs[menuSel](); }
       else if (mode === STATE.DEAD) { SND.confirm(); startLevel(game.level); }
       else if (mode === STATE.DONE) { SND.confirm(); startLevel(game.level + 1); }
       else if (mode === STATE.OVER || mode === STATE.WIN) { SND.confirm(); OVER_SFX.cut(); menu(); }
-    }
-    if ((k === "c" || k === "C") && mode === STATE.MENU) {
-      var sv = load();
-      if (sv && sv.level > 1) { SND.confirm(); game = sv; startLevel(sv.level); }
     }
     if (k === "p" || k === "P") {
       if (mode === STATE.PLAY) { mode = STATE.PAUSE; MUSIC.pause(); show("PAUSED", "<span class='blink'>P &mdash; resume</span>", "#ff0"); }
       else if (mode === STATE.PAUSE) { mode = STATE.PLAY; MUSIC.resume(); hide(); }
     }
     if ((k === "r" || k === "R") && mode === STATE.PLAY) { startLevel(game.level); }
+  });
+  ovMsg.addEventListener("wheel", function (e) { // mouse scrolling on the instructions screen
+    if (mode === STATE.HELP) { e.preventDefault(); scrollHelp(e.deltaY > 0 ? 3 : -3); }
   });
   document.addEventListener("keyup", function (e) {
     var k = e.key;

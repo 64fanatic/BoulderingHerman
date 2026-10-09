@@ -6,7 +6,6 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#000 url("assets/cave_bg.gif"); min-height:100vh; display:flex; flex-direction:column;
          align-items:center; justify-content:center; font-family:"Almendra",serif; color:#c0c0c0; }
-  h1 { font-family:"Pirata One",serif; font-size:24px; letter-spacing:2px; color:#0f0; margin:4px 0 2px; }
   #hud { width:648px; display:flex; justify-content:space-between; font-family:"MedievalSharp",cursive; font-size:13px;
          padding:3px 6px; background:#0f0; color:#000; border:2px solid #000; font-weight:bold; }
   #wrap { position:relative; }
@@ -21,5 +20,8 @@
   #overlay.hidden { display:none; }
   #ov-title { font-family:"Pirata One",serif; font-size:1.8em; color:#f00; }
   #ov-msg { font-family:"Almendra",serif; font-size:1.05em; color:#0f0; line-height:1.7; }
+  #ov-msg.scrolling { flex:1 1 auto; align-self:stretch; min-height:0; overflow:hidden;
+                      display:flex; align-items:flex-start; justify-content:center; }
+  #help-scroll { text-align:center; }
   .blink { font-family:"Uncial Antiqua",serif; animation:blink 1s infinite; color:#fff; }
   @keyframes blink { 50% { opacity:0; } }
