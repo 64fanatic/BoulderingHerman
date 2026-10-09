@@ -133,8 +133,41 @@ def one_up():
     return out
 
 
+def explosion():
+    # a proper cave boom: a deep sine drop for the body, a brown-noise
+    # rumble for the blast wave, and a crackle of sharp noise ticks riding
+    # on top for the debris. Randomness comes after the seeded calls above,
+    # so regenerating leaves every other file byte-identical.
+    n = int(SR * 0.55)
+    body = sine_sweep(n, 95, 26, curve=2.4)
+    env = envelope(n, SR * 0.003, n, curve=2.6)
+    body = [b * e for b, e in zip(body, env)]
+    rumble = lowpass(brown_noise(n), 60)
+    env2 = envelope(n, SR * 0.002, int(n * 0.45), curve=2.6)
+    rumble = [r * e for r, e in zip(rumble, env2)]
+    out = mix(scale(body, 0.9), scale(rumble, 0.45), 1.0)
+    # debris crackle: sparse short noise ticks, dense early, dying out
+    crackle = [0.0] * n
+    i = 0
+    while i < n:
+        if random.random() < 0.85 - 0.7 * (i / n):
+            tick_len = int(SR * random.uniform(0.004, 0.012))
+            tick = scale(white_noise(tick_len), random.uniform(0.2, 0.55))
+            for j in range(tick_len):
+                if i + j < n:
+                    crackle[i + j] += tick[j] * (1.0 - i / n)
+            i += tick_len + int(SR * random.uniform(0.002, 0.03))
+        else:
+            i += int(SR * 0.01)
+    out = mix(out, crackle, 1.0)
+    # normalize: same punch every regeneration, never clipped
+    peak = max(1e-9, max(abs(s) for s in out))
+    return [s * (0.88 / peak) for s in out]
+
+
 if __name__ == "__main__":
     write_wav("roll.wav", roll())
     write_wav("thud.wav", thud())
     write_wav("splat.wav", splat())
     write_wav("oneup.wav", one_up())
+    write_wav("boom.wav", explosion())

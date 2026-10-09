@@ -35,9 +35,12 @@ function winnable(G, px, py, ex, ey, needed, needKeys) {
 }
 
 // the time budget steps up with the cave's workload: flowers, brick walls and
-// boulder density all grow with the cave number, so deeper caves get more clock
+// boulder density all grow with the cave number, so deeper caves get more clock.
+// On top of the base steps, a bonus ramp keeps the deep caves generous:
+// +100s from cave 11, +200 from 20, +300 from 40, +500 from 50, +800 from 75
 function levelTime(n) {
-  return n <= 10 ? 90 : n <= 20 ? 120 : n <= 30 ? 150 : 200;
+  var bonus = n >= 75 ? 800 : n >= 50 ? 500 : n >= 40 ? 300 : n >= 20 ? 200 : n >= 11 ? 100 : 0;
+  return (n <= 10 ? 90 : n <= 20 ? 120 : n <= 30 ? 150 : 200) + bonus;
 }
 
 function genLevel(n) {
@@ -114,6 +117,14 @@ function genLevel(n) {
     }
     if (ex < 0) continue;
     if (g[ey][ex] !== S) g[ey][ex] = X; else continue;
+    // a fair exit needs at least two ways in: one stray boulder must not be
+    // able to seal the only approach and make a finished cave unwinnable
+    var exitNb = 0;
+    if (g[ey][ex - 1] === E || g[ey][ex - 1] === D || g[ey][ex - 1] === M || g[ey][ex - 1] === KY) exitNb++;
+    if (g[ey][ex + 1] === E || g[ey][ex + 1] === D || g[ey][ex + 1] === M || g[ey][ex + 1] === KY) exitNb++;
+    if (g[ey - 1][ex] === E || g[ey - 1][ex] === D || g[ey - 1][ex] === M || g[ey - 1][ex] === KY) exitNb++;
+    if (g[ey + 1][ex] === E || g[ey + 1][ex] === D || g[ey + 1][ex] === M || g[ey + 1][ex] === KY) exitNb++;
+    if (exitNb < 2) continue;
     var seen = [], q = [], reachD = 0, reachCells = [], j;
     for (y = 0; y < H; y++) seen.push(new Array(W).fill(false));
     seen[py][px] = true; q.push([px, py]);
@@ -187,7 +198,9 @@ function genLevel(n) {
           Math.abs(gx - px) + Math.abs(gy - py) >= 5; // dirt lid: nothing can rest on a key
       });
       var placedKeys = 0;
-      while (placedKeys < 3 && keySpots.length) {
+      // a fourth spare key: enemy blasts destroy everything in their 3x3, and
+      // losing one of exactly three keys would make the cave unwinnable
+      while (placedKeys < 4 && keySpots.length) {
         j = Math.floor(rnd() * keySpots.length);
         var ks = keySpots.splice(j, 1)[0];
         g[ks[1]][ks[0]] = KY;
@@ -273,15 +286,50 @@ function doorOpen(st) {
   return st.collected >= st.needed && st.keys >= (st.needKeys || 0);
 }
 
+// a key destroyed by a blast respawns immediately on a random empty cell
+// the player can actually reach (dug or walked to): losing a key must never
+// leave the cave unwinnable
+function respawnKey(st) {
+  var seen = [], q = [[st.px, st.py]], spotsFar = [], spotsNear = [];
+  for (var y = 0; y < H; y++) seen.push(new Array(W).fill(false));
+  seen[st.py][st.px] = true;
+  while (q.length) {
+    var p = q.pop(), x = p[0], y = p[1];
+    var od = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (var i = 0; i < 4; i++) {
+      var nx = x + od[i][0], ny = y + od[i][1];
+      if (nx < 1 || ny < 1 || nx >= W - 1 || ny >= H - 1 || seen[ny][nx]) continue;
+      var t = st.g[ny][nx];
+      if (t === E || t === D || t === M || t === KY) {
+        seen[ny][nx] = true; q.push([nx, ny]);
+        if (t === E) { // a bare floor cell: somewhere the key can simply sit
+          var d = Math.abs(nx - st.px) + Math.abs(ny - st.py);
+          (d >= 3 ? spotsFar : spotsNear).push([nx, ny]);
+        }
+      } else if (t === O && od[i][1] === 0 && st.g[ny][nx + od[i][0]] === E) {
+        seen[ny][nx] = true; q.push([nx, ny]); // pushable boulder: reachable in time
+      }
+    }
+  }
+  var spots = spotsFar.length ? spotsFar : spotsNear; // prefer a little distance from Herman
+  if (!spots.length) return; // nothing bare and reachable: leave it destroyed
+  var s = spots[Math.floor(Math.random() * spots.length)];
+  st.g[s[1]][s[0]] = KY;
+}
+
 function explode(st, x, y, dia) {
+  var lostKeys = 0;
   for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
     var x2 = x + dx, y2 = y + dy;
     if (x2 <= 0 || y2 <= 0 || x2 >= W - 1 || y2 >= H - 1) continue;
     var t = st.g[y2][x2];
     if (t === S || t === X) continue;
+    if (t === KY) lostKeys++;
     st.g[y2][x2] = dia ? M : E;
   }
   if (Math.abs(st.px - x) <= 1 && Math.abs(st.py - y) <= 1) st.dead = true;
+  st.booms = (st.booms || 0) + 1; // the UI plays the explosion SFX off this counter
+  for (var i = 0; i < lostKeys; i++) respawnKey(st);
 }
 
 function physics(st) {

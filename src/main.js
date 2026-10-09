@@ -64,6 +64,7 @@
       move: function () { play("assets/sfx/roll.wav", 0.3 * sfxGain, 110); },
       thud: function () { play("assets/sfx/thud.wav", 0.5 * sfxGain, 120); },
       splat: function () { play("assets/sfx/splat.wav", 0.6 * sfxGain, 0); },
+      boom: function () { play("assets/sfx/boom.wav", 0.7 * sfxGain, 80); },
       oneUp: function () { play("assets/sfx/oneup.wav", 0.5 * sfxGain, 0); },
       step: function () { play("assets/sfx/footstep0" + (1 + Math.floor(Math.random() * 9)) + ".ogg", 0.15 * stepGain, 90, true); },
       select: function () { play("assets/sfx/select_001.ogg", 0.4 * sfxGain, 60); },
@@ -741,6 +742,7 @@
   // every discrete sound in the game, for the audio menu's sound test row
   var TEST_SOUNDS = [
     { name: "roll.wav" }, { name: "thud.wav" }, { name: "splat.wav" }, { name: "oneup.wav" },
+    { name: "boom.wav" },
     { name: "select_001.ogg" }, { name: "toggle_001.ogg" }
   ];
   for (var ti = 1; ti <= 9; ti++) TEST_SOUNDS.push({ name: "footstep0" + ti + ".ogg" });
@@ -838,6 +840,10 @@
     if (!st) return;
     var avalanche = mode === STATE.DEAD || mode === STATE.OVER;
     if (mode !== STATE.PLAY && !avalanche) return;
+    var preBoom = st.booms || 0; // explosions this tick, in input, physics or enemies
+    function checkBoom() { // fire-and-forget: the SFX throttle handles bursts
+      if ((st.booms || 0) > preBoom) { SND.boom(); preBoom = st.booms; }
+    }
     if (mode === STATE.PLAY && !st.squish) { // frozen: the boulder already has him
       var dx = 0, dy = 0;
       var t = queue.shift();
@@ -863,6 +869,7 @@
         }
       }
       if (st.dead || st.done) {
+        checkBoom(); // stepping into a firefly detonates it
         st.done ? onComplete() : onDeath();
         return;
       }
@@ -871,13 +878,15 @@
     if (ev.moved) SND.move();
     if (ev.thud) SND.thud();
     if (ev.crush) SND.splat();
+    checkBoom(); // a boulder landing on a firefly or butterfly
     if (mode === STATE.PLAY) {
       if (st.dead) { onDeath(); return; }
       enemyStep(st);
-      if (st.dead) { onDeath(); return; }
+      if (st.dead) { checkBoom(); onDeath(); return; } // the enemy reached him
       st.time -= TICK / 1000;
       if (st.time <= 0) {
         explode(st, st.px, st.py, false);
+        checkBoom(); // the clock detonates him: boom first, jingle after
         onDeath();
         // the clock, not a boulder, killed him: the jingle sounds on every time-out.
         // STATE.OVER already played it inside onDeath; STATE.DEAD (lives left) would be silent
