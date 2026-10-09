@@ -14,6 +14,10 @@ python3 -m http.server
 
 and mosey on over to http://localhost:8000.
 
+The game grows with your window, but only in whole-number multiples of its native
+size — 2x, 3x, whatever fits — so the pixels stay razor sharp. No blurry
+fractional stretching in this cave.
+
 ## A taste of the caves
 
 ![Herman mid-dig in cave 1, boulders looming overhead](readme/images/ingame1.png)
@@ -48,6 +52,8 @@ For the curious and the code-inclined:
 - `src/main.js` — the face: rendering, input, and the game state machine that keeps it all honest
 - `tiles/` — every 16x16 sprite as an editable PNG, plus the palette
 - `tools/tiles_io.py` — bake your tile edits into the game (see `tiles/README.md`)
+- `assets/cave_bg.gif` — the animated mossy-rocks-and-water background
+- `tools/make_background.py` — regenerate that background
 
 Feeling artistic? Every sprite in the game is a 16x16 PNG you can redraw in
 LibreSprite — Herman's creepy purple-lipped face included. Edit a tile, run one

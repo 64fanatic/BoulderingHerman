@@ -7,6 +7,21 @@
   var hLevel = document.getElementById("h-level"), hDia = document.getElementById("h-dia"),
       hNeed = document.getElementById("h-need"), hTime = document.getElementById("h-time"),
       hScore = document.getElementById("h-score"), hLives = document.getElementById("h-lives");
+  var hudBar = document.getElementById("hud"), h1El = document.querySelector("h1"),
+      footEl = document.getElementById("foot");
+  // scale the game in whole-number multiples only, so pixels stay crisp;
+  // the biggest multiplier that fits the window wins
+  function fit() {
+    var chromeH = h1El.offsetHeight + hudBar.offsetHeight + footEl.offsetHeight + 44;
+    var k = Math.max(1, Math.floor(Math.min(
+      (window.innerWidth - 24) / canvas.width,
+      (window.innerHeight - chromeH) / canvas.height)));
+    canvas.style.width = canvas.width * k + "px";
+    canvas.style.height = canvas.height * k + "px";
+    hudBar.style.width = (canvas.width + 8) * k + "px";
+    overlay.style.fontSize = 15 * k + "px";
+  }
+  window.addEventListener("resize", fit);
   var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
@@ -427,6 +442,7 @@
   });
 
   menu();
+  fit();
   st = mkState(genLevel(1));
   requestAnimationFrame(loop);
 })();
