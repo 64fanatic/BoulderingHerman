@@ -6,7 +6,7 @@ This is a Boulder Dash-style game with 100 procedurally generated caves, but it'
 
 https://www.mobygames.com/game/233178/herman-and-the-falling-rocks/
 
-That concept is the base I'm working with and I'll add some more features beyond what the 1992 original was capable of in my vibe slop edumacation journey, and probably end up going too far is a couple places.
+That concept is the base I'm working with and I'll add some more features beyond what the 1992 original was capable of in my vibe slop edumacation journey, and probably end up going too far in a couple places.
 
 Check out LGR's game review for more historical context:
 
