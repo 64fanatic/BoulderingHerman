@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Regenerate readme/images/thumbs/ from the full-size screenshots in
-readme/images/. The README progress grid points at the thumbs, so the page
-stays light. Run this after swapping in new screenshots:
+"""Thumbnail the full-size screenshots in readme/images/ into
+readme/images/thumbs/. The README progress grid points at the thumbs, so the
+page stays light. Once a thumbnail is written the full-size source is deleted
+(the README never links it, and git history keeps the originals). Run this
+after dropping in a new screenshot:
 
     python3 tools/make_thumbs.py
 """
@@ -17,17 +19,23 @@ WIDTH = 640  # displayed at ~300px, so it stays crisp on hi-dpi screens
 
 def main():
     os.makedirs(OUT, exist_ok=True)
-    made = 0
+    made = freed = 0
     for name in sorted(os.listdir(SRC)):
         if not name.lower().endswith(".png"):
             continue
-        im = Image.open(os.path.join(SRC, name)).convert("RGB")
+        path = os.path.join(SRC, name)
+        was = os.path.getsize(path)
+        im = Image.open(path).convert("RGB")
         h = round(im.height * WIDTH / im.width)
         im = im.resize((WIDTH, h), Image.LANCZOS)
         im.quantize(colors=256, dither=Image.Dither.NONE).save(
             os.path.join(OUT, name), optimize=True)
+        os.remove(path)  # the thumb replaces it; the README only links thumbs
         made += 1
-    print("wrote %d thumbnails to readme/images/thumbs/ (%dpx wide)" % (made, WIDTH))
+        freed += was
+    print("wrote %d thumbnails to readme/images/thumbs/ (%dpx wide); "
+          "removed %.1f MB of full-size sources"
+          % (made, WIDTH, freed / 1e6))
 
 
 if __name__ == "__main__":

@@ -39,10 +39,12 @@ out of the same loop — describe the change, let the agent make it, play the ca
   <tr>
     <td align="center"><img src="readme/images/thumbs/revision%203-1.png" width="300" alt="Revision 3-1"></td>
     <td align="center"><img src="readme/images/thumbs/revision%203-2.png" width="300" alt="Revision 3-2"></td>
+    <td align="center"><img src="readme/images/thumbs/revision%204-1.png" width="300" alt="Revision 4-1"></td>
   </tr>
   <tr>
     <td align="center">revision 3-1</td>
     <td align="center">revision 3-2</td>
+    <td align="center">revision 4-1</td>
   </tr>
 </table>
 
