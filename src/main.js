@@ -606,9 +606,9 @@
     st = mkState(genLevel(n));
     game.level = n;
   }
-  function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); MENU_MUSIC.sync(); MUSIC.start(n); RATS.topUp(n); }
+  function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); MENU_MUSIC.sync(); MUSIC.start(n); RATS.topUp(n); AIBOT.reset(); }
 
-  var menuSel = 0, menuActs = [], helpOff = 0;
+  var menuSel = 0, menuActs = [], helpOff = 0, aiStart = false; // START row: NORMAL or AI PLAYTEST pilot
   function hint(txt) { ovHint.textContent = txt; }
 
   function menu() {
@@ -620,7 +620,9 @@
   function renderMenu() {
     var sv = load();
     var labels = [], acts = [];
-    labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3, flowers: 0 }; RATS.reset(); startLevel(1); });
+    labels.push("START &nbsp;<span style='color:" + (menuSel === 0 ? "#ff0" : "#888") + "'>&larr; " +
+      (aiStart ? "AI PLAYTEST" : "NORMAL") + " &rarr;</span>");
+    acts.push(function () { game = { level: 1, score: 0, lives: 3, flowers: 0, ai: aiStart }; RATS.reset(); startLevel(1); });
     if (sv && sv.level > 1) labels.push("CONTINUE AT CAVE " + sv.level), acts.push(function () { game = sv; startLevel(sv.level); });
     labels.push("LEVEL SELECT"); acts.push(showLevelSel);
     labels.push("LEADERBOARD"); acts.push(function () { showBoard(); });
@@ -836,8 +838,17 @@
       "<br><br><span class='blink'>SPACE &mdash; enter cave " + (game.level + 1) + "</span>", "#0f0");
   }
 
+  var aiPause = 0; // the pilot presses SPACE on the between-cave screens by itself
   function tick() {
     if (!st) return;
+    if (game && game.ai && (mode === STATE.DEAD || mode === STATE.DONE)) {
+      if (++aiPause >= 14) { // let the SPLAT/CLEARED card read for ~2 seconds
+        aiPause = 0;
+        SND.confirm();
+        startLevel(game.level + (mode === STATE.DONE ? 1 : 0));
+      }
+      return;
+    }
     var avalanche = mode === STATE.DEAD || mode === STATE.OVER;
     if (mode !== STATE.PLAY && !avalanche) return;
     var preBoom = st.booms || 0; // explosions this tick, in input, physics or enemies
@@ -846,7 +857,11 @@
     }
     if (mode === STATE.PLAY && !st.squish) { // frozen: the boulder already has him
       var dx = 0, dy = 0;
-      var t = queue.shift();
+      if (game && game.ai) { // the AI pilot flies Herman; the keyboard is ignored
+        var mv = AIBOT.decide(st);
+        if (mv) { dx = mv[0]; dy = mv[1]; }
+      } else {
+        var t = queue.shift();
       if (t) {
         if (t === "l") dx -= 1;
         else if (t === "r") dx += 1;
@@ -858,6 +873,7 @@
         if (held.u) dy -= 1;
         if (held.d) dy += 1;
         if (dx !== 0) dy = 0;
+      }
       }
       if (dx !== 0 || dy !== 0) {
         var ox = st.px, oy = st.py, oc = st.collected;
@@ -1343,12 +1359,18 @@
     if (k === "ArrowDown" || k === "s" || k === "S") { held.d = true; if (!repeat) tap("d"); }
     if (mode === STATE.MENU && !repeat) { // move between items with any movement key
       var prev = menuSel;
-      if (k === "ArrowUp" || k === "ArrowLeft" || k === "w" || k === "W" || k === "a" || k === "A") {
+      var isLeft = k === "ArrowLeft" || k === "a" || k === "A";
+      var isRight = k === "ArrowRight" || k === "d" || k === "D";
+      if (menuSel === 0 && (isLeft || isRight)) { // the START row: left/right pick the pilot
+        aiStart = !aiStart; // either direction flips NORMAL <-> AI PLAYTEST
+        SND.select(); renderMenu();
+      } else if (k === "ArrowUp" || isLeft || k === "w" || k === "W") {
         menuSel = (menuSel + menuActs.length - 1) % menuActs.length;
-      } else if (k === "ArrowDown" || k === "ArrowRight" || k === "s" || k === "S" || k === "d" || k === "D") {
+        if (menuSel !== prev) { SND.select(); renderMenu(); }
+      } else if (k === "ArrowDown" || isRight || k === "s" || k === "S") {
         menuSel = (menuSel + 1) % menuActs.length;
+        if (menuSel !== prev) { SND.select(); renderMenu(); }
       }
-      if (menuSel !== prev) { SND.select(); renderMenu(); }
     }
     if (mode === STATE.HELP) { // scroll the instructions with up/down
       if (k === "ArrowUp" || k === "w" || k === "W") { SND.select(); scrollHelp(-1); }
