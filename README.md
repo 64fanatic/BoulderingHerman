@@ -10,7 +10,7 @@ That concept is the base I'm working with and I'll add some more features beyond
 
 Check out LGR's game review for more historical context:
 
-https://www.youtube.com/watch?v=k5U0mz8ZPm0
+[![LGR's Herman and the Falling Rocks review](https://img.youtube.com/vi/k5U0mz8ZPm0/maxresdefault.jpg)](https://www.youtube.com/watch?v=k5U0mz8ZPm0)
 
 Procedural generation of course, which means no two play-throughs feel quite the same. The more caves you clear, the harder and meaner the cave generator gets. To a point anyway and this is WIP. I'm focused on making that curve actually fun, it's roughly sketched in currently.
 
