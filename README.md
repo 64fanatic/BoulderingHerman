@@ -16,7 +16,7 @@ Procedural generation of course, which means no two play-throughs feel quite the
 
 ## Play
 
-Releases page for Linux AppImage and Windows executable.
+Releases page for Linux AppImage and Windows executable, or download the repo and open index.html.
 
 The game screen integer scales with your window. No fractional scaling in this cave.
 
@@ -71,7 +71,7 @@ perches on something round (Flowers count as round) it tries to slide off sidewa
 crushes you, that's a SPLAT.
 
 The Butterflies have a party trick: pop one with a boulder and it'll bursts into
-flowers. Fireflies are agressive. Decide for yourself risk/reward.
+flowers. Fireflies are aggressive and give you nothing but trouble. Decide for yourself risk/reward.
 
 ## Feeling Artistic?
 
