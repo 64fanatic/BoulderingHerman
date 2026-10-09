@@ -135,6 +135,8 @@ function genLevel(n) {
 
 function mkState(data) {
   var g = data.grid.map(function (r) { return r.slice(); });
+  var fall = [];
+  for (var fy = 0; fy < H; fy++) fall.push(new Array(W).fill(false));
   var enemies = [];
   for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
     if (g[y][x] === F) enemies.push({ x: x, y: y, dx: 1, dy: 0, type: F });
@@ -143,7 +145,8 @@ function mkState(data) {
   return {
     g: g, px: data.px, py: data.py, ex: data.ex, ey: data.ey,
     needed: data.needed, time: data.time, collected: 0,
-    enemies: enemies, dead: false, done: false
+    enemies: enemies, dead: false, done: false,
+    fall: fall // fall[y][x]: true while the boulder at (x,y) has momentum
   };
 }
 
@@ -160,31 +163,62 @@ function explode(st, x, y, dia) {
 
 function physics(st) {
   var g = st.g, moved = {}, key = function (x, y) { return y * W + x; };
+  var ev = { moved: 0, thud: 0, crush: false };
   for (var y = H - 2; y >= 1; y--) {
     for (var x = 1; x < W - 1; x++) {
       var t = g[y][x];
       if (t !== O) continue; // only boulders fall; diamonds stay put
       if (moved[key(x, y)]) continue;
+      var falling = st.fall[y][x];
       var below = g[y + 1][x];
       if (below === E) {
-        if (st.px === x && st.py === y + 1) { explode(st, x, y + 1, false); g[y][x] = E; continue; }
-        g[y][x] = E; g[y + 1][x] = t; moved[key(x, y + 1)] = 1;
+        if (st.px === x && st.py === y + 1) {
+          if (falling) {
+            // momentum carries the boulder into Herman: squash, no explosion
+            g[y][x] = E; g[y + 1][x] = O;
+            st.fall[y][x] = false; st.fall[y + 1][x] = false;
+            st.dead = true;
+            ev.crush = true; ev.moved++;
+          }
+          // else: a boulder dug free directly above Herman waits on his head;
+          // it only starts falling once he steps out of the way
+        } else {
+          g[y][x] = E; g[y + 1][x] = t;
+          st.fall[y][x] = false; st.fall[y + 1][x] = true;
+          moved[key(x, y + 1)] = 1;
+          ev.moved++;
+        }
       } else if (below === F || below === B) {
         explode(st, x, y + 1, below === B);
         g[y][x] = E;
-      } else if (below === O || below === M) {
-        var pl = g[y][x - 1], plb = g[y + 1][x - 1];
-        var pr = g[y][x + 1], prb = g[y + 1][x + 1];
-        var atL = !(st.px === x - 1 && st.py === y);
-        var atR = !(st.px === x + 1 && st.py === y);
-        if (pl === E && plb === E && atL && (!atR || !(pr === E && prb === E) || Math.random() < 0.5)) {
-          g[y][x] = E; g[y][x - 1] = t; moved[key(x - 1, y)] = 1;
-        } else if (pr === E && prb === E && atR) {
-          g[y][x] = E; g[y][x + 1] = t; moved[key(x + 1, y)] = 1;
+        st.fall[y][x] = false;
+        ev.moved++;
+      } else {
+        // resting on an occupied tile
+        if (falling) { st.fall[y][x] = false; ev.thud++; }
+        if (below === O || below === M) {
+          // perched on something round: try to roll off it, one tile sideways;
+          // after the roll it falls again next tick if the new spot is open below
+          var pl = g[y][x - 1], plb = g[y + 1][x - 1];
+          var pr = g[y][x + 1], prb = g[y + 1][x + 1];
+          var atL = !(st.px === x - 1 && st.py === y);
+          var atR = !(st.px === x + 1 && st.py === y);
+          if (pl === E && plb === E && atL && (!atR || !(pr === E && prb === E) || Math.random() < 0.5)) {
+            g[y][x] = E; g[y][x - 1] = t;
+            st.fall[y][x - 1] = true;
+            moved[key(x - 1, y)] = 1;
+            ev.moved++;
+          } else if (pr === E && prb === E && atR) {
+            g[y][x] = E; g[y][x + 1] = t;
+            st.fall[y][x + 1] = true;
+            moved[key(x + 1, y)] = 1;
+            ev.moved++;
+          }
         }
       }
     }
   }
+  return ev;
 }
 
 function enemyStep(st) {

@@ -40,7 +40,17 @@ really: a series of increasingly poor decisions about gravity.
 
 Dig through dirt. Shove boulders around like you own the place. Collect diamonds until the exit door deigns to open, then stroll through it like the champion you are.
 
-Fair warning: physics doesn't care about your feelings. Boulders fall, and falling boulders crush things — you, fireflies, butterflies, anything standing in the wrong spot. The butterflies have a party trick, though: pop one and it bursts into diamonds. Decide for yourself whether that makes it better or worse.
+A word on boulders, because they have rules now. Dig out the dirt under one and stand
+there, and it will hover over your head, politely waiting. Step out from under it,
+though, and it drops — with a rumble while it rolls and a thud when it lands. If it
+perches on something round it tries to slide off sideways, and if a falling boulder
+catches you, it moves right into your tile and that's a SPLAT: the character is
+deleted, a splat sound plays, and the cave does not pause for your funeral. Feel free
+to watch the avalanche you caused behind the dimmed game-over screen before pressing
+space to try again.
+
+The butterflies have a party trick, though: pop one with a boulder and it bursts into
+diamonds. Decide for yourself whether that makes it better or worse.
 
 ## Structure
 
@@ -54,6 +64,8 @@ For the curious and the code-inclined:
 - `tools/tiles_io.py` — bake your tile edits into the game (see `tiles/README.md`)
 - `assets/cave_bg.gif` — the animated mossy-rocks-and-water background
 - `tools/make_background.py` — regenerate that background
+- `assets/sfx/` — the boulder sounds: rumble, thud, splat
+- `tools/make_sfx.py` — synthesize those sounds from scratch (royalty-free by construction)
 
 Feeling artistic? Every sprite in the game is a 16x16 PNG you can redraw in
 LibreSprite — Herman's creepy purple-lipped face included. Edit a tile, run one

@@ -22,6 +22,26 @@
     overlay.style.fontSize = 15 * k + "px";
   }
   window.addEventListener("resize", fit);
+  // boulder sounds - original synthesized effects (see tools/make_sfx.py)
+  var SND = (function () {
+    var last = {};
+    function play(file, vol, gap) {
+      var now = performance.now();
+      if (last[file] && now - last[file] < gap) return;
+      last[file] = now;
+      try {
+        var a = new Audio(file);
+        a.volume = vol;
+        var p = a.play();
+        if (p && p.catch) p.catch(function () {});
+      } catch (e) {}
+    }
+    return {
+      move: function () { play("assets/sfx/roll.wav", 0.3, 110); },
+      thud: function () { play("assets/sfx/thud.wav", 0.5, 120); },
+      splat: function () { play("assets/sfx/splat.wav", 0.6, 0); }
+    };
+  })();
   var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
@@ -99,32 +119,44 @@
   }
 
   function tick() {
-    if (mode !== STATE.PLAY || !st) return;
-    var dx = 0, dy = 0;
-    var t = queue.shift();
-    if (t) {
-      if (t === "l") dx -= 1;
-      else if (t === "r") dx += 1;
-      else if (t === "u") dy -= 1;
-      else if (t === "d") dy += 1;
+    if (!st) return;
+    var avalanche = mode === STATE.DEAD || mode === STATE.OVER;
+    if (mode !== STATE.PLAY && !avalanche) return;
+    if (mode === STATE.PLAY) {
+      var dx = 0, dy = 0;
+      var t = queue.shift();
+      if (t) {
+        if (t === "l") dx -= 1;
+        else if (t === "r") dx += 1;
+        else if (t === "u") dy -= 1;
+        else if (t === "d") dy += 1;
+      } else {
+        if (held.l) dx -= 1;
+        if (held.r) dx += 1;
+        if (held.u) dy -= 1;
+        if (held.d) dy += 1;
+        if (dx !== 0) dy = 0;
+      }
+      if (dx !== 0 || dy !== 0) tryMove(st, dx, dy);
+      if (st.dead || st.done) {
+        st.done ? onComplete() : onDeath();
+        return;
+      }
+    }
+    var ev = physics(st);
+    if (ev.moved) SND.move();
+    if (ev.thud) SND.thud();
+    if (ev.crush) SND.splat();
+    if (mode === STATE.PLAY) {
+      if (st.dead) { onDeath(); return; }
+      enemyStep(st);
+      if (st.dead) { onDeath(); return; }
+      st.time -= TICK / 1000;
+      if (st.time <= 0) { explode(st, st.px, st.py, false); onDeath(); }
     } else {
-      if (held.l) dx -= 1;
-      if (held.r) dx += 1;
-      if (held.u) dy -= 1;
-      if (held.d) dy += 1;
-      if (dx !== 0) dy = 0;
+      // behind the dimmed SPLAT screen the cave keeps going: avalanches are fair entertainment
+      enemyStep(st);
     }
-    if (dx !== 0 || dy !== 0) tryMove(st, dx, dy);
-    if (st.dead || st.done) {
-      st.done ? onComplete() : onDeath();
-      return;
-    }
-    physics(st);
-    if (st.dead) { onDeath(); return; }
-    enemyStep(st);
-    if (st.dead) { onDeath(); return; }
-    st.time -= TICK / 1000;
-    if (st.time <= 0) { explode(st, st.px, st.py, false); onDeath(); }
   }
 
   // ---- rendering ----
@@ -402,9 +434,14 @@
   function loop(now) {
     var dt = Math.min(0.05, (now - last) / 1000);
     last = now;
-    if (mode === STATE.PLAY) {
+    var ticking = mode === STATE.PLAY || mode === STATE.DEAD || mode === STATE.OVER;
+    if (ticking) {
       tickAcc += dt * 1000;
-      while (tickAcc >= TICK) { tickAcc -= TICK; tick(); if (mode !== STATE.PLAY) break; }
+      while (tickAcc >= TICK) {
+        tickAcc -= TICK;
+        tick();
+        if (mode !== STATE.PLAY && mode !== STATE.DEAD && mode !== STATE.OVER) { tickAcc = 0; break; }
+      }
     }
     render(now / 1000);
     requestAnimationFrame(loop);
