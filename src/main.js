@@ -437,37 +437,55 @@
   // Renders above the black background veil, below the game and HUD.
   var FOG = (function () {
     var cv = document.createElement("canvas"), g = cv.getContext("2d");
-    cv.style.cssText = "position:fixed;left:0;top:0;pointer-events:none;z-index:-1;";
+    cv.style.cssText = "position:fixed;left:0;top:0;pointer-events:none;z-index:-1;opacity:.2;";
     document.body.appendChild(cv);
-    var S = 256; // fog tile size; every sine in the noise wraps whole cycles, so it tiles seamlessly
+    var S = 512, C = 4; // fog tile size, dither cell size: chunky 4px dots, low-res Saturn style
     var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]; // 4x4 ordered dither
-    function makeTile(kx, ky, ph, cut, color) {
+    function smooth(t) { return t * t * (3 - 2 * t); }
+    function makeTile(cut, color) {
       var r = parseInt(color.slice(1, 3), 16), gr = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
       var c = document.createElement("canvas"); c.width = S; c.height = S;
       var x2 = c.getContext("2d");
       var img = x2.createImageData(S, S), d = img.data;
-      for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
-        var v = 0, a = 1;
-        for (var o = 0; o < 4; o++) {
-          v += a * Math.sin(6.283 * (kx[o] * x + ky[o] * y) / S + ph[o]);
-          a *= 0.55;
+      var B = S / C; // the noise works in dither cells
+      // wrapped multi-octave value noise: diffuse, shapeless clouds - no
+      // recurring swirl signature that would betray the tile repeat
+      var field = new Float32Array(B * B), amp = 1, total = 0;
+      for (var o = 0, ns = [2, 5, 11, 23]; o < ns.length; o++) {
+        var n = ns[o], grid = [];
+        for (var i = 0; i < n * n; i++) grid.push(Math.random());
+        for (var y = 0; y < B; y++) {
+          var fy = y * n / B, iy = Math.floor(fy), y0 = iy % n, y1 = (y0 + 1) % n, ty = smooth(fy - iy);
+          for (var x = 0; x < B; x++) {
+            var fx = x * n / B, ix = Math.floor(fx), x0 = ix % n, x1 = (x0 + 1) % n, tx = smooth(fx - ix);
+            var a = grid[y0 * n + x0] * (1 - tx) + grid[y0 * n + x1] * tx;
+            var bb = grid[y1 * n + x0] * (1 - tx) + grid[y1 * n + x1] * tx;
+            field[y * B + x] += amp * (a * (1 - ty) + bb * ty);
+          }
         }
-        var t = Math.max(0, Math.min(1, ((v + 2.05) / 4.1 - cut) * 3));
-        if (t > (BAYER[(x & 3) + ((y & 3) << 2)] + 0.5) / 16) {
-          var i = (y * S + x) * 4;
-          d[i] = r; d[i + 1] = gr; d[i + 2] = b; d[i + 3] = 255;
+        total += amp;
+        amp *= 0.5;
+      }
+      for (var by = 0; by < B; by++) for (var bx = 0; bx < B; bx++) {
+        var t = Math.max(0, Math.min(1, (field[by * B + bx] / total - cut) * 1.8));
+        if (t > (BAYER[(bx & 3) + ((by & 3) << 2)] + 0.5) / 16) { // a whole CxC cell goes on or off
+          for (var py = 0; py < C; py++) for (var px = 0; px < C; px++) {
+            var i = ((by * C + py) * S + bx * C + px) * 4;
+            d[i] = r; d[i + 1] = gr; d[i + 2] = b; d[i + 3] = 255;
+          }
         }
       }
       x2.putImageData(img, 0, 0);
       return c;
     }
-    var layers = [ // far: dim, sparse, slow; near: brighter, thicker, quicker
-      { t: makeTile([1, 3, 2, 5], [2, 1, 4, 3], [0.3, 2.1, 4.2, 1.1], 0.45, "#757d8a"), a: Math.random() * 6.28, v: 9, x: 0, y: 0 },
-      { t: makeTile([2, 1, 4, 3], [1, 3, 2, 5], [1.7, 0.4, 3.3, 5.2], 0.25, "#a9b3c1"), a: Math.random() * 6.28, v: 15, x: 0, y: 0 }
+    var layers = [ // far: dim, sparse, slow; near: brighter, thicker, quicker. grungy green-grey
+      { t: makeTile(0.20, "#65705f"), a: Math.random() * 6.28, v: 9, x: 0, y: 0 },
+      { t: makeTile(0.12, "#94a08d"), a: Math.random() * 6.28, v: 15, x: 0, y: 0 }
     ];
     function layout() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
     layout();
     window.addEventListener("resize", layout);
+    var STEP = S - 2; // tiles overlap their neighbours by 2px: no seam lines while drifting
     function frame(dt) {
       g.clearRect(0, 0, cv.width, cv.height);
       for (var i = 0; i < layers.length; i++) {
@@ -475,9 +493,12 @@
         l.a += (Math.random() - 0.5) * dt; // the heading drifts into slow curves, never snap turns
         l.x += Math.cos(l.a) * l.v * dt;
         l.y += Math.sin(l.a) * l.v * dt;
+        // fractional offsets: sub-pixel drift is smooth (whole-pixel steps make
+        // the 1px dither dots crawl and flicker); the antialiased tile edges they
+        // cause are hidden under the 2px overlap
         var bx = ((l.x % S) + S) % S - S, by = ((l.y % S) + S) % S - S;
-        for (var y = by; y < cv.height; y += S)
-          for (var x = bx; x < cv.width; x += S)
+        for (var y = by; y < cv.height; y += STEP)
+          for (var x = bx; x < cv.width; x += STEP)
             g.drawImage(l.t, x, y);
       }
     }
@@ -1281,7 +1302,7 @@
       else if (k === "Escape") { SND.confirm(); resume(); }
       if (pauseSel !== prevPause) { SND.select(); renderPause(); }
     }
-    if (k === "p" || k === "P") {
+    if (k === "p" || k === "P" || (k === "Escape" && mode === STATE.PLAY)) { // Esc pauses in-game too (B on gamepad)
       if (mode === STATE.PLAY) showPause();
       else if (mode === STATE.PAUSE) resume();
     }

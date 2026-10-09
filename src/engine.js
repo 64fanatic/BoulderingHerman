@@ -12,8 +12,41 @@ function mulberry32(a) {
   };
 }
 
+// can the cave still be finished from (px,py): exit reachable, enough
+// reachable flowers, and (past cave 10) all three keys
+function winnable(G, px, py, ex, ey, needed, needKeys) {
+  var seen = [], q = [[px, py]], flowers = 0, keys = 0;
+  for (var y = 0; y < H; y++) seen.push(new Array(W).fill(false));
+  seen[py][px] = true;
+  while (q.length) {
+    var p = q.pop(), dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    for (var i = 0; i < 4; i++) {
+      var x2 = p[0] + dirs[i][0], y2 = p[1] + dirs[i][1];
+      if (x2 < 0 || y2 < 0 || x2 >= W || y2 >= H || seen[y2][x2]) continue;
+      var t = G[y2][x2];
+      if (t === E || t === D || t === M || t === X || t === KY) {
+        seen[y2][x2] = true; q.push([x2, y2]);
+        if (t === M) flowers++;
+        if (t === KY) keys++;
+      }
+    }
+  }
+  return seen[ey][ex] && flowers >= needed && keys >= needKeys;
+}
+
+// the time budget steps up with the cave's workload: flowers, brick walls and
+// boulder density all grow with the cave number, so deeper caves get more clock
+function levelTime(n) {
+  return n <= 10 ? 60 : n <= 20 ? 90 : n <= 30 ? 120 : 164;
+}
+
 function genLevel(n) {
   var base = n * 7919 + 13;
+  var needKeys = n > 10 ? 3 : 0; // from cave 11 the exit door demands three keys
+  // difficulty scale: caves 1-28 ramp as tuned; 29-40 climb at roughly half
+  // rate; past 40 the climb flattens again, so cave 100 tops out near the
+  // old cave-51 ferocity
+  var m = n <= 28 ? n : 28 + (Math.min(n, 40) - 28) * 0.55 + Math.max(0, n - 40) * 0.275;
   for (var att = 0; att < 400; att++) {
     var rnd = mulberry32(base + att * 104729 + 1);
     var g = [], x, y;
@@ -25,10 +58,10 @@ function genLevel(n) {
       }
       g.push(row);
     }
-    var clusters = 2 + Math.floor(rnd() * 4), c, i;
+    var clusters = 2 + Math.floor(rnd() * 4) + Math.min(3, Math.floor(m / 25)), c, i; // more wall snakes deeper in
     for (c = 0; c < clusters; c++) {
       var cx = 2 + Math.floor(rnd() * (W - 4)), cy = 2 + Math.floor(rnd() * (H - 4));
-      var len = 2 + Math.floor(rnd() * 5);
+      var len = 2 + Math.floor(rnd() * 5) + Math.min(4, Math.floor(m / 20)); // and longer ones, too
       var sx = cx, sy = cy;
       for (i = 0; i < len; i++) {
         if (g[sy] && g[sy][sx] !== undefined && g[sy][sx] !== S) g[sy][sx] = S;
@@ -36,14 +69,32 @@ function genLevel(n) {
         sx = Math.max(1, Math.min(W - 2, sx)); sy = Math.max(1, Math.min(H - 2, sy));
       }
     }
-    var bP = 0.10 + Math.min(0.10, n * 0.0012);       // boulders get denser...
-    var kP = 0.015 + Math.min(0.12, n * 0.0015);     // ...and so do the brick walls
+    var bP = 0.11 + Math.min(0.10, m * 0.0012);      // boulders get denser...
+    var kP = 0.015 + Math.min(0.12, m * 0.0015);     // ...and so do the brick walls
     for (y = 1; y < H - 1; y++) for (x = 1; x < W - 1; x++) {
       if (g[y][x] === S) continue;
       var r = rnd();
       if (r < bP) g[y][x] = O;
       else if (r < bP + 0.03) g[y][x] = M;
       else if (r < bP + 0.03 + kP) g[y][x] = K;
+    }
+    // lethal piles: vertical boulder stacks - solid rock, or dirt-plugged so
+    // one careless dig underneath drops a boulder on the digger's head. The
+    // original game loved these; their number grows with the cave number.
+    var piles = Math.min(4, 1 + Math.floor(m / 12));
+    for (i = 0; i < piles; i++) {
+      var col = 2 + Math.floor(rnd() * (W - 4));
+      var top = 2 + Math.floor(rnd() * (H - 8));
+      var hgt = 3 + Math.floor(rnd() * 3); // 3-5 cells tall
+      var solid = rnd() < 0.35;            // some piles are pure cascading rock
+      var last = -1;
+      for (var pi = 0; pi < hgt; pi++) {
+        var yy = top + pi;
+        if (yy >= H - 2 || g[yy][col] === S || g[yy][col] === K) break; // leave walls standing
+        g[yy][col] = solid || pi % 2 === 0 ? O : D; // boulder, dirt, boulder...
+        last = yy;
+      }
+      if (last >= 0 && g[last + 1] && g[last + 1][col] === E) g[last + 1][col] = D; // sure footing
     }
     var tries = 0, px = 3, py = 3;
     do { px = 2 + Math.floor(rnd() * (W - 4)); py = 2 + Math.floor(rnd() * (H - 4)); tries++; }
@@ -80,16 +131,24 @@ function genLevel(n) {
       }
     }
     // flower quota: +1 per cave from 5 up to the ceiling of 35 (reached at cave 31,
-    // held through cave 35); every cave after 35 draws a fresh quota of 20-40
-    var needed = n <= 35 ? Math.min(5 + (n - 1), 35) : 20 + Math.floor(rnd() * 21);
+    // held through cave 35); after 35 the quota climbs again toward 40 with the cave
+    var needed = n <= 35 ? Math.min(5 + (n - 1), 35)
+      : Math.min(40, 33 + Math.floor((n - 36) / 10) + Math.floor(rnd() * 6)); // ceiling: 40
     // the cave holds exactly the quota plus a random 0..7 spare flowers
     var want = needed + Math.floor(rnd() * 8);
     if (!seen[ey][ex]) continue;
     if (reachD < want) {
-      var cand = reachCells.filter(function (c2) { return g[c2[1]][c2[0]] === D; });
-      while (reachD < want && cand.length) {
-        j = Math.floor(rnd() * cand.length);
-        var cc = cand.splice(j, 1)[0];
+      // deeper caves stash their flowers farther afield: more walking per petal
+      var minD = Math.min(9, Math.floor(m / 8));
+      var far = [], near = [];
+      reachCells.forEach(function (c2) {
+        if (g[c2[1]][c2[0]] !== D) return;
+        (Math.abs(c2[0] - px) + Math.abs(c2[1] - py) >= minD ? far : near).push(c2);
+      });
+      while (reachD < want && (far.length || near.length)) {
+        var src = far.length && (!near.length || rnd() < 0.8) ? far : near;
+        j = Math.floor(rnd() * src.length);
+        var cc = src.splice(j, 1)[0];
         g[cc[1]][cc[0]] = M; reachD++;
       }
       if (reachD < want) continue;
@@ -106,8 +165,8 @@ function genLevel(n) {
     for (y = 1; y < H - 1; y++) for (x = 1; x < W - 1; x++) {
       if (g[y][x] === M && !seen[y][x]) g[y][x] = D;
     }
-    var nf = Math.min(5, Math.floor(n / 14));
-    var nb = Math.min(5, Math.max(0, Math.floor((n - 20) / 14)));
+    var nf = Math.min(5, Math.floor(m / 14));
+    var nb = Math.min(5, Math.max(0, Math.floor((m - 20) / 14)));
     var spots = reachCells.filter(function (c2) {
       var gx = c2[0], gy = c2[1];
       return g[gy][gx] === E && Math.abs(gx - px) + Math.abs(gy - py) >= 6;
@@ -137,7 +196,7 @@ function genLevel(n) {
       if (placedKeys < 3) continue;
     }
     // ambushes: boulders balanced on out-of-the-way flowers, waiting for greedy fingers
-    var trapN = Math.min(4, Math.floor(n / 12));
+    var trapN = Math.min(3, Math.floor(m / 12));
     var flowerCells = reachCells.filter(function (c2) {
       return g[c2[1]][c2[0]] === M && Math.abs(c2[0] - px) + Math.abs(c2[1] - py) >= 8;
     });
@@ -160,8 +219,15 @@ function genLevel(n) {
       if (probe.dead || probe.g[probe.py][probe.px] !== E) { safe = false; break; }
     }
     if (!safe) continue;
-    var time = Math.max(75, 165 - Math.floor(n * 0.9));
-    return { grid: g, px: px, py: py, ex: ex, ey: ey, needed: needed, time: time, needKeys: n > 10 ? 3 : 0 };
+    // early enemy blasts and late boulder cascades both replay for real in
+    // play, and both can eat flowers and keys or seal paths: the cave must
+    // stay winnable on the post-probe grid and once fully settled
+    if (!winnable(probe.g, px, py, ex, ey, needed, needKeys)) continue;
+    var settled = mkState({ grid: g, px: px, py: py, ex: ex, ey: ey, needed: needed, time: 1 });
+    for (var s2 = 0, calm = 0; s2 < 600 && calm < 3; s2++) calm = physics(settled).moved ? 0 : calm + 1;
+    if (!winnable(settled.g, px, py, ex, ey, needed, needKeys)) continue;
+    var time = levelTime(n);
+    return { grid: g, px: px, py: py, ex: ex, ey: ey, needed: needed, time: time, needKeys: needKeys };
   }
   // Deterministic fallback cave (should almost never trigger)
   var fr = mulberry32(4242);
@@ -181,7 +247,7 @@ function genLevel(n) {
   }
   for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++) g2[2 + dy][2 + dx] = E;
   g2[H - 3][W - 3] = X; g2[H - 3][W - 4] = E; g2[H - 4][W - 3] = E;
-  return { grid: g2, px: 2, py: 2, ex: W - 3, ey: H - 3, needed: 5, time: 150 };
+  return { grid: g2, px: 2, py: 2, ex: W - 3, ey: H - 3, needed: 5, time: levelTime(n) };
 }
 
 function mkState(data) {
