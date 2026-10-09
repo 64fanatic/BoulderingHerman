@@ -42,7 +42,8 @@
 **Almendra, MedievalSharp, Pirata One, Uncial Antiqua**
 - Bundled as woff2 in `assets/fonts/`
 - Available from Google Fonts (https://fonts.google.com/)
-- License: SIL Open Font License 1.1 (https://openfontlicense.org/)
+- License: SIL Open Font License 1.1 — full text bundled at `License/OFL.txt`
+  (reference: https://openfontlicense.org/)
 - The fonts may be used, studied, modified, and redistributed freely, as long
   as they are not sold by themselves and the OFL license text accompanies any
   redistributed copies. Reserved font names apply to the original versions.
