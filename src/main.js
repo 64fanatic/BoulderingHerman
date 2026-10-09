@@ -10,6 +10,12 @@
   var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
+  var queue = []; // buffered taps, consumed one per tick, so quick presses are never lost
+  function tap(dir) {
+    if (mode !== STATE.PLAY) return;
+    if (queue.length >= 2) queue.shift(); // when full, latest intent wins
+    queue.push(dir);
+  }
   var saveKey = "boulderdash100";
 
   function save() {
@@ -30,7 +36,7 @@
     st = mkState(genLevel(n));
     game.level = n;
   }
-  function startLevel(n) { loadLevel(n); mode = STATE.PLAY; hide(); }
+  function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); }
 
   function menu() {
     mode = STATE.MENU;
@@ -80,11 +86,19 @@
   function tick() {
     if (mode !== STATE.PLAY || !st) return;
     var dx = 0, dy = 0;
-    if (held.l) dx -= 1;
-    if (held.r) dx += 1;
-    if (held.u) dy -= 1;
-    if (held.d) dy += 1;
-    if (dx !== 0) dy = 0;
+    var t = queue.shift();
+    if (t) {
+      if (t === "l") dx -= 1;
+      else if (t === "r") dx += 1;
+      else if (t === "u") dy -= 1;
+      else if (t === "d") dy += 1;
+    } else {
+      if (held.l) dx -= 1;
+      if (held.r) dx += 1;
+      if (held.u) dy -= 1;
+      if (held.d) dy += 1;
+      if (dx !== 0) dy = 0;
+    }
     if (dx !== 0 || dy !== 0) tryMove(st, dx, dy);
     if (st.dead || st.done) {
       st.done ? onComplete() : onDeath();
@@ -238,10 +252,10 @@
   document.addEventListener("keydown", function (e) {
     var k = e.key;
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].indexOf(k) >= 0) e.preventDefault();
-    if (k === "ArrowLeft" || k === "a" || k === "A") held.l = true;
-    if (k === "ArrowRight" || k === "d" || k === "D") held.r = true;
-    if (k === "ArrowUp" || k === "w" || k === "W") held.u = true;
-    if (k === "ArrowDown" || k === "s" || k === "S") held.d = true;
+    if (k === "ArrowLeft" || k === "a" || k === "A") { held.l = true; if (!e.repeat) tap("l"); }
+    if (k === "ArrowRight" || k === "d" || k === "D") { held.r = true; if (!e.repeat) tap("r"); }
+    if (k === "ArrowUp" || k === "w" || k === "W") { held.u = true; if (!e.repeat) tap("u"); }
+    if (k === "ArrowDown" || k === "s" || k === "S") { held.d = true; if (!e.repeat) tap("d"); }
     if (k === " ") {
       if (mode === STATE.MENU) { game = { level: 1, score: 0, lives: 3 }; startLevel(1); }
       else if (mode === STATE.DEAD) { startLevel(game.level); }
