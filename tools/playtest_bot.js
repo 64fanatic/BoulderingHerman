@@ -43,7 +43,7 @@ function cloneState(st) {
   return {
     g: st.g.map(function (r) { return r.slice(); }),
     fall: st.fall.map(function (r) { return r.slice(); }),
-    enemies: st.enemies.map(function (e) { return { x: e.x, y: e.y, dx: e.dx, dy: e.dy, type: e.type }; }),
+    enemies: st.enemies.map(function (e) { return { x: e.x, y: e.y, dx: e.dx, dy: e.dy, type: e.type, t: e.t || 0 }; }),
     px: st.px, py: st.py, ex: st.ex, ey: st.ey,
     needed: st.needed, time: st.time, collected: st.collected,
     keys: st.keys, needKeys: st.needKeys,

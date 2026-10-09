@@ -404,6 +404,11 @@ function enemyStep(st) {
   for (var i = 0; i < st.enemies.length; i++) {
     var e = st.enemies[i];
     if (g[e.y][e.x] !== e.type) continue; // destroyed by explosion
+    // butterflies crawl at 1 step per 8 ticks, fireflies at 1 per 5:
+    // Herman (1 per tick) always outpaces them
+    e.t = (e.t || 0) + 1;
+    if (e.t < (e.type === B ? 8 : 5)) { alive.push(e); continue; }
+    e.t = 0;
     var left = { x: e.dy, y: -e.dx }, right = { x: -e.dy, y: e.dx };
     var back = { x: -e.dx, y: -e.dy };
     var order = e.type === F
