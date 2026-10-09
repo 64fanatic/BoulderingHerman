@@ -43,26 +43,28 @@
   // boulder sounds - original synthesized effects (see tools/make_sfx.py)
   // menu sounds - Kenney GameSynth assets (select_001/toggle_001)
   var SND = (function () {
-    var last = {};
+    var last = {}, sfxGain = 1, stepGain = 1; // dB slider gains, applied live
     function play(file, vol, gap, wobble) {
       var now = performance.now();
       if (last[file] && now - last[file] < gap) return;
       last[file] = now;
       try {
         var a = new Audio(file);
-        a.volume = vol;
+        a.volume = Math.min(1, Math.max(0, vol));
         if (wobble) a.playbackRate = 0.85 + Math.random() * 0.3; // never the same step twice
         var p = a.play();
         if (p && p.catch) p.catch(function () {});
       } catch (e) {}
     }
     return {
-      move: function () { play("assets/sfx/roll.wav", 0.3, 110); },
-      thud: function () { play("assets/sfx/thud.wav", 0.5, 120); },
-      splat: function () { play("assets/sfx/splat.wav", 0.6, 0); },
-      step: function () { play("assets/sfx/footstep0" + (1 + Math.floor(Math.random() * 9)) + ".ogg", 0.15, 90, true); },
-      select: function () { play("assets/sfx/select_001.ogg", 0.4, 60); },
-      confirm: function () { play("assets/sfx/toggle_001.ogg", 0.4, 60); }
+      setSound: function (g) { sfxGain = g; },   // every effect except footsteps
+      setStep: function (g) { stepGain = g; },   // footsteps answer only to their own slider
+      move: function () { play("assets/sfx/roll.wav", 0.3 * sfxGain, 110); },
+      thud: function () { play("assets/sfx/thud.wav", 0.5 * sfxGain, 120); },
+      splat: function () { play("assets/sfx/splat.wav", 0.6 * sfxGain, 0); },
+      step: function () { play("assets/sfx/footstep0" + (1 + Math.floor(Math.random() * 9)) + ".ogg", 0.15 * stepGain, 90, true); },
+      select: function () { play("assets/sfx/select_001.ogg", 0.4 * sfxGain, 60); },
+      confirm: function () { play("assets/sfx/toggle_001.ogg", 0.4 * sfxGain, 60); }
     };
   })();
   // Firefox throttles tabs it thinks are silent, and HDMI receivers drop the
@@ -169,6 +171,11 @@
         stopFade();
         play();
         fadeTo(VOL);
+      },
+      volume: function (v) { // dB slider: takes over as fade target and current level
+        VOL = v;
+        stopFade();
+        el.volume = Math.min(1, Math.max(0, v));
       }
     };
   })();
@@ -182,7 +189,36 @@
         var p = el.play();
         if (p && p.catch) p.catch(function () {});
       },
-      cut: function () { try { el.pause(); el.currentTime = 0; } catch (e) {} }
+      cut: function () { try { el.pause(); el.currentTime = 0; } catch (e) {} },
+      volume: function (v) { el.volume = Math.min(1, Math.max(0, v)); }
+    };
+  })();
+  // audio settings - three dB sliders (music, sound, footsteps), persisted.
+  // 0 dB is each channel's designed level, -48 dB is silence, steps of 2 dB.
+  var AUDIO = (function () {
+    var KEY = "boulderdash100audio", MIN = -48, STEP = 2;
+    var vals = { music: 0, sound: 0, step: 0 };
+    try {
+      var sv = JSON.parse(localStorage.getItem(KEY));
+      if (sv) for (var k in vals) if (typeof sv[k] === "number") vals[k] = Math.max(MIN, Math.min(0, sv[k]));
+    } catch (e) {}
+    function gain(db) { return db <= MIN ? 0 : Math.pow(10, db / 20); }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(vals)); } catch (e) {} }
+    function apply() {
+      MUSIC.volume(0.5 * gain(vals.music)); // 0.5 dB-relative: the designed music level
+      SND.setSound(gain(vals.sound));
+      SND.setStep(gain(vals.step));
+      OVER_SFX.volume(0.7 * gain(vals.sound));
+    }
+    apply();
+    return {
+      MIN: MIN, STEP: STEP,
+      get: function (k) { return vals[k]; },
+      adjust: function (k, d) { // d in steps of STEP dB; saves and applies live
+        vals[k] = Math.max(MIN, Math.min(0, vals[k] + d * STEP));
+        save();
+        apply();
+      }
     };
   })();
   // rats - XPenguins-style eye candy patrolling the browser window border.
@@ -285,7 +321,7 @@
     }
     return { spawn: spawn, topUp: topUp, frame: frame };
   })();
-  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7 };
+  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7, AUDIO: 8 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
   var queue = []; // buffered taps, consumed one per tick, so quick presses are never lost
@@ -330,6 +366,7 @@
     var labels = [], acts = [];
     labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3 }; startLevel(1); });
     if (sv && sv.level > 1) labels.push("CONTINUE AT CAVE " + sv.level), acts.push(function () { game = sv; startLevel(sv.level); });
+    labels.push("AUDIO"); acts.push(showAudio);
     labels.push("INSTRUCTIONS"); acts.push(showHelp);
     if (menuSel >= labels.length) menuSel = 0;
     menuActs = acts;
@@ -372,17 +409,42 @@
     inner.style.transform = "translateY(" + (-helpOff) + "px)";
   }
 
+  var audioSel = 0;
+  var AUDIO_ROWS = [["music", "MUSIC"], ["sound", "SOUND"], ["step", "FOOTSTEPS"]];
+  function showAudio() {
+    mode = STATE.AUDIO;
+    renderAudio();
+  }
+
+  function renderAudio() { // three dB sliders, navigated and tuned with movement keys
+    var span = -AUDIO.MIN, html = "";
+    for (var i = 0; i < AUDIO_ROWS.length; i++) {
+      var key = AUDIO_ROWS[i][0], db = AUDIO.get(key);
+      var pos = Math.round((db - AUDIO.MIN) / span * 12); // 12-segment bar
+      var bar = "";
+      for (var s = 0; s < 12; s++) bar += s < pos ? "\u2588" : "\u2591";
+      html += "<div style='line-height:2.1" + (i === audioSel ? ";color:#fff" : ";color:#0f0") + "'>" +
+        (i === audioSel ? "&raquo; " : "&nbsp;&nbsp;&nbsp;") + AUDIO_ROWS[i][1] +
+        "&nbsp; <span style='color:" + (i === audioSel ? "#ff0" : "#0a0") + "'>" + bar + "</span>" +
+        "&nbsp; " + (db <= AUDIO.MIN ? "MUTE" : db + " dB") + "</div>";
+    }
+    html += "<br><span style='color:#fff'>&larr; &rarr; adjust &nbsp;|&nbsp; ESC &mdash; back</span>";
+    show("AUDIO", html, "#ff0");
+    hint("ESC — BACK");
+  }
+
   function onDeath() {
     game.lives--;
     if (game.lives <= 0) {
       mode = STATE.OVER;
       MUSIC.stop();
       OVER_SFX.play();
-      save();
+      try { localStorage.removeItem(saveKey); } catch (e) {} // out of lives: the run is over, the save goes with it
       show("GAME OVER", "The cave claimed another Herman.<br>Final score: " + game.score +
         "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#f00");
     } else {
       mode = STATE.DEAD;
+      save(); // lives remaining persist: quitting here resumes at this cave with these lives
       show("SPLAT!", "Lives left: " + game.lives +
         "<br><br><span class='blink'>SPACE &mdash; retry cave " + game.level + "</span>", "#ff0");
     }
@@ -893,6 +955,24 @@
       if (k === "ArrowUp" || k === "w" || k === "W") { SND.select(); scrollHelp(-1); }
       else if (k === "ArrowDown" || k === "s" || k === "S") { SND.select(); scrollHelp(1); }
       else if (k === "Escape") { SND.confirm(); menu(); }
+    }
+    if (mode === STATE.AUDIO) { // sliders: up/down pick a row, left/right tune it
+      if ((k === "ArrowUp" || k === "w" || k === "W") && !e.repeat) {
+        audioSel = (audioSel + AUDIO_ROWS.length - 1) % AUDIO_ROWS.length;
+        SND.select(); renderAudio();
+      } else if ((k === "ArrowDown" || k === "s" || k === "S") && !e.repeat) {
+        audioSel = (audioSel + 1) % AUDIO_ROWS.length;
+        SND.select(); renderAudio();
+      } else if (k === "ArrowLeft" || k === "a" || k === "A") {
+        SND.select(); AUDIO.adjust(AUDIO_ROWS[audioSel][0], -1); renderAudio();
+      } else if (k === "ArrowRight" || k === "d" || k === "D") {
+        SND.select(); AUDIO.adjust(AUDIO_ROWS[audioSel][0], 1); renderAudio();
+      } else if (k === "Escape") {
+        SND.confirm(); menu();
+      }
+    }
+    if (k === "Escape" && (mode === STATE.OVER || mode === STATE.WIN)) {
+      SND.confirm(); OVER_SFX.cut(); menu(); // bail out of the end screen, back to the menu
     }
     if (k === " ") {
       if (mode === STATE.MENU) { SND.confirm(); menuActs[menuSel](); }

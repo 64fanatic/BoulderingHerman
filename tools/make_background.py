@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """Generate assets/cave_bg.gif - a seamless, looping animated background in a
-dark cave palette: a worn cobblestone wall, heavy moss, and a single narrow
-stream of water flowing down the rocks. Kept murky so it never upstages gameplay.
+dark cave palette: a worn cobblestone wall, heavy moss, and a narrow stream
+running down through the joints between the stones. The water conforms to the
+cobblestones like the moss does - it only sits in the mortar, never over a
+stone face - and the current flows downhill (toward increasing x+y). Kept
+murky so it never upstages gameplay.
 
-The 64x64 tile repeats in both directions; the diagonal stream wraps mod 64, so
-water flows continuously across tiles. The 8-frame cycle loops seamlessly.
+The 64x64 tile repeats in both directions; the diagonal stream band wraps
+mod 64, so water flows continuously across tiles. The 8-frame cycle loops
+seamlessly.
 
 Usage: python3 tools/make_background.py
 """
@@ -29,8 +33,9 @@ W = (0x90, 0x90, 0x90)   # sparkle
 PALETTE = [K, a, A, G, g, N, B, W]
 SIZE = 64
 FRAMES = 8
-# one narrow diagonal stream (down-right at 45 deg), defined mod 64 so it wraps
-STREAMS = [(32, 4)]  # (offset along y-x axis, width)
+# one narrow diagonal band (down-right at 45 deg), defined mod 64 so it wraps;
+# within the band, water only fills the joints, so it hugs the cobbles
+STREAMS = [(32, 6)]  # (offset along y-x axis, width)
 
 
 def h(x, y):
@@ -86,33 +91,25 @@ def build_static():
             if px[(x, y)] == g and h(x * 3, y * 7) < 10:
                 px[(x, y)] = G  # moss highlights
 
-    # the streams carve through the stones: still water with mossy banks
+    # the stream runs down the wall through the joints: water lies in the
+    # mortar like the moss, conforming to the cobblestones, never over a face
     for y in range(SIZE):
         for x in range(SIZE):
             for o, w in STREAMS:
-                if in_stream(x, y, o, w):
+                if in_stream(x, y, o, w) and px[(x, y)] in (K, g):
                     px[(x, y)] = N
-                elif in_stream(x, y, o - 1, 1) or in_stream(x, y, o + w, 1):
-                    if h(x + y, x - y) < 55:
-                        px[(x, y)] = g  # mossy waterline
     return px
 
 
 def water_pixel(static, x, y, f):
     """Animated water; returns a color or None to keep the static layer."""
-    for o, w in STREAMS:
-        if not in_stream(x, y, o, w):
-            continue
-        u = (x + y) % 8  # position along the stream, flowing down-right
-        if (u + f * 2) % 8 < 3:
-            return B  # the current
-        if (x * 5 + y * 3 + f * 4) % 64 == 0:
-            return W  # a sparkle
-        return None
-    for o, w in STREAMS:  # ripple lapping at the banks
-        if in_stream(x, y, o - 1, 1) or in_stream(x, y, o + w, 1):
-            if (x + y + f) % 8 < 2:
-                return B
+    if static.get((x, y)) != N:
+        return None  # water only exists where the joints hold it
+    u = (x + y) - f * 2  # the current travels downhill (increasing x+y)
+    if u % 8 < 3:
+        return B  # the current
+    if u % 32 == 0:
+        return W  # a sparkle drifting down with the current
     return None
 
 

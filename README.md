@@ -18,15 +18,25 @@ The game grows with your window, but only in whole-number multiples of its nativ
 size — 2x, 3x, whatever fits — so the pixels stay razor sharp. No blurry
 fractional stretching in this cave.
 
-## A taste of the caves
+## Development, one revision at a time
 
-![Herman mid-dig in cave 1, boulders looming overhead](readme/images/ingame1.png)
+This whole game is an experiment in building with AI: each revision below came
+out of the same loop — describe the change, let the agent make it, play the
+cave, decide what's next. The style, the sounds, the music, the royal logo,
+the border rats: all of it accreted revision by revision like this.
 
-Herman contemplates his next move in cave 1. That's him in the corner — the pale
-fellow with the purple lips, the grin that has seen things, and the nose he is
-very proud of. See the flowers? He wants those.
-See the boulders hanging around overhead? Those want *him*. This is the whole game,
-really: a series of increasingly poor decisions about gravity.
+<table>
+  <tr>
+    <td align="center"><img src="readme/images/thumbs/revision%201.png" width="300" alt="Revision 1"></td>
+    <td align="center"><img src="readme/images/thumbs/revision%202.png" width="300" alt="Revision 2"></td>
+    <td align="center"><img src="readme/images/thumbs/revision%202-2.png" width="300" alt="Revision 2-2"></td>
+  </tr>
+  <tr>
+    <td align="center">revision 1</td>
+    <td align="center">revision 2</td>
+    <td align="center">revision 2-2</td>
+  </tr>
+</table>
 
 ## Controls
 
@@ -75,6 +85,7 @@ For the curious and the code-inclined:
 - `tools/make_frame.py` — regenerate that border
 - `assets/sfx/` — the boulder sounds: rumble, thud, splat, and Herman's steps
 - `tools/make_sfx.py` — synthesize those sounds from scratch (royalty-free by construction)
+- `readme/images/` — full-size development screenshots; `tools/make_thumbs.py` shrinks them into `readme/images/thumbs/` for the grid above
 
 Feeling artistic? Every sprite in the game is a 16x16 PNG you can redraw in
 LibreSprite — Herman's creepy purple-lipped face included. Edit a tile, run one
