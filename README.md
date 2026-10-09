@@ -12,7 +12,7 @@ Check out LGR's game review for more historical context:
 
 [![LGR's Herman and the Falling Rocks review](readme/images/OIP.jpg)](https://www.youtube.com/watch?v=k5U0mz8ZPm0)
 
-Procedural generation of course, which means no two play-throughs feel quite the same. The more caves you clear, the harder and meaner the cave generator gets. To a point anyway and this is WIP. I'm focused on making that curve actually fun, it's roughly sketched in currently.
+The more caves you clear, the harder and meaner the cave generator gets. To a point anyway and this is WIP. I'm focused on making that curve actually fun, it's roughly sketched in currently.
 
 ## Play
 
