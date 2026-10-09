@@ -163,7 +163,7 @@ function physics(st) {
   for (var y = H - 2; y >= 1; y--) {
     for (var x = 1; x < W - 1; x++) {
       var t = g[y][x];
-      if (t !== O && t !== M) continue;
+      if (t !== O) continue; // only boulders fall; diamonds stay put
       if (moved[key(x, y)]) continue;
       var below = g[y + 1][x];
       if (below === E) {
