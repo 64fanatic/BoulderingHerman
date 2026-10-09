@@ -637,7 +637,10 @@
       html += "<div style='line-height:1.9'>";
       for (var c = 0; c < 3; c++) {
         var i = r * 3 + c, sel = i === levelSel;
-        html += "<span style='display:inline-block;width:33%;color:" + (sel ? "#fff" : "#0f0") + "'>" +
+        // fixed 2em cells: the overlay shrink-wraps, so 33% here would resolve
+        // against the grid's own width and be too narrow for the widest cell
+        // ("» GO"), wrapping its marker onto the line above
+        html += "<span style='display:inline-block;width:2em;white-space:nowrap;color:" + (sel ? "#fff" : "#0f0") + "'>" +
           (sel ? "&raquo; " : "&nbsp;&nbsp;") + LEVEL_CELLS[i] + "</span>";
       }
       html += "</div>";
