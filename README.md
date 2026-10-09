@@ -1,6 +1,6 @@
 # HermanVibeSlop
 
-**Boulder Herman** — a Boulder Dash-style game with 100 procedurally generated caves.
+**Bouldering Herman and the Sloppy Rocks** — a Boulder Dash-style game with 100 procedurally generated caves.
 
 That's right: one hundred. Every single one of them conjured out of thin air by an algorithm, which means no two playthroughs feel quite the same, and every so often the cave generator hands you something genuinely mean. You've been warned.
 

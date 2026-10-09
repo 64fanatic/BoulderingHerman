@@ -10,22 +10,25 @@
       hKeys = document.getElementById("h-keys"), hKNeed = document.getElementById("h-kneed"),
       hudKeys = document.getElementById("hud-keys");
   var hudBar = document.getElementById("hud"), h1El = document.querySelector("h1"),
-      footEl = document.getElementById("foot"), frameEl = document.getElementById("frame");
+      frameEl = document.getElementById("frame");
   // scale the game in whole-number multiples only, so pixels stay crisp;
   // the biggest multiplier that fits the window wins. Re-checked every frame,
   // and only the styles for a new multiplier are ever written.
   var fitK = 0;
   function fit() {
     try {
-      var chromeH = h1El.offsetHeight + hudBar.offsetHeight + footEl.offsetHeight + 36;
+      var chromeH = h1El.offsetHeight + hudBar.offsetHeight + 36;
+      // 16px of scaled frame overhang: 8 up (clearance so the border never
+      // covers the HUD) and 8 down (border hangs below the canvas)
       var k = Math.max(1, Math.floor(Math.min(
         (window.innerWidth - 24) / canvas.width,
-        (window.innerHeight - chromeH) / canvas.height)));
+        (window.innerHeight - chromeH) / (canvas.height + 16))));
       if (k === fitK) return;
       fitK = k;
       canvas.style.width = canvas.width * k + "px";
       canvas.style.height = canvas.height * k + "px";
       hudBar.style.width = (canvas.width + 8) * k + "px";
+      hudBar.style.marginBottom = 8 * k + "px"; // exactly the border overhang: no overlap, no gap
       hudBar.style.fontSize = 13 * k + "px";
       overlay.style.fontSize = 15 * k + "px";
       frameEl.style.left = -8 * k + "px";
@@ -36,6 +39,7 @@
   }
   window.addEventListener("resize", fit);
   // boulder sounds - original synthesized effects (see tools/make_sfx.py)
+  // menu sounds - Kenney GameSynth assets (select_001/toggle_001)
   var SND = (function () {
     var last = {};
     function play(file, vol, gap, wobble) {
@@ -54,8 +58,230 @@
       move: function () { play("assets/sfx/roll.wav", 0.3, 110); },
       thud: function () { play("assets/sfx/thud.wav", 0.5, 120); },
       splat: function () { play("assets/sfx/splat.wav", 0.6, 0); },
-      step: function () { play("assets/sfx/step.wav", 0.15, 90, true); }
+      step: function () { play("assets/sfx/footstep0" + (1 + Math.floor(Math.random() * 9)) + ".ogg", 0.15, 90, true); },
+      select: function () { play("assets/sfx/select_001.ogg", 0.4, 60); },
+      confirm: function () { play("assets/sfx/toggle_001.ogg", 0.4, 60); }
     };
+  })();
+  // Firefox throttles tabs it thinks are silent, and HDMI receivers drop the
+  // audio stream once no samples flow. This keeps a WebAudio graph running with
+  // an inaudible-but-nonzero output (~-68 dB, far below hearing over HDMI), so
+  // the tab always counts as playing audio. Starts on first input (autoplay
+  // policy) and resumes after the tab was hidden.
+  var AUD = (function () {
+    var ac = null;
+    function wake() {
+      try {
+        if (!ac) {
+          var AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return;
+          ac = new AC();
+          var osc = ac.createOscillator();
+          var g = ac.createGain();
+          g.gain.value = 0.0004;
+          osc.frequency.value = 55;
+          osc.connect(g);
+          g.connect(ac.destination);
+          osc.start();
+        }
+        if (ac.state === "suspended") ac.resume();
+      } catch (e) {}
+    }
+    return { wake: wake };
+  })();
+  document.addEventListener("pointerdown", AUD.wake);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) AUD.wake(); });
+  // level music - one randomly picked mp3 from "assets/background audio" per
+  // level, looped until the level changes; every loop restart fades in, and the
+  // tail of the file fades out, so the loop point is never a hard cut.
+  // Browsers can't list a folder on their own: drop new tracks in the folder,
+  // then add their file name to `tracks`.
+  var MUSIC = (function () {
+    var dir = "assets/background audio/";
+    var tracks = [
+      "freesound_community-big-temlpe-cave-soundscape-fantasy-201117_0067-26818.mp3",
+      "freesound_community-cave-background-sound-49440.mp3",
+      "freesound_community-dungeon-air-6983.mp3"
+    ];
+    var VOL = 0.5, FADE = 2; // target volume, fade length in seconds
+    var el = new Audio(), curTrack = null, level = -1, playing = false, tail = false, timer = null;
+    function stopFade() { if (timer) { clearInterval(timer); timer = null; } }
+    function fadeTo(target, done) {
+      stopFade();
+      var from = el.volume, t0 = performance.now();
+      timer = setInterval(function () {
+        var k = (performance.now() - t0) / (FADE * 1000);
+        if (k >= 1) { el.volume = target; stopFade(); if (done) done(); return; }
+        el.volume = Math.max(0, Math.min(1, from + (target - from) * k));
+      }, 40);
+    }
+    function play() { var p = el.play(); if (p && p.catch) p.catch(function () {}); }
+    function pick() { // random track, never the same one twice in a row
+      var t = tracks[Math.floor(Math.random() * tracks.length)];
+      if (tracks.length > 1 && t === curTrack) t = tracks[(tracks.indexOf(t) + 1) % tracks.length];
+      curTrack = t;
+      tail = false;
+      el.src = dir + t;
+    }
+    el.addEventListener("timeupdate", function () {
+      if (playing && !tail && !timer && el.duration && el.duration - el.currentTime <= FADE) {
+        tail = true;
+        fadeTo(0); // the file is about to end: let it sink to silence
+      }
+    });
+    el.addEventListener("ended", function () {
+      if (!playing) return;
+      tail = false;
+      try { el.currentTime = 0; } catch (e) {}
+      play();
+      fadeTo(VOL); // ... and rise back up from silence
+    });
+    return {
+      start: function (n) { // called on every level (re)start with the level number
+        if (!playing) {
+          playing = true;
+          level = n;
+          pick();
+          el.volume = 0;
+          play();
+          fadeTo(VOL);
+          return;
+        }
+        if (n === level) return; // same level (retry, restart): keep the loop running
+        level = n;
+        fadeTo(0, function () { // new level: out with the old, in with the new
+          pick();
+          try { el.currentTime = 0; } catch (e) {}
+          play();
+          fadeTo(VOL);
+        });
+      },
+      stop: function () { // fade out and silence (game over, win)
+        playing = false;
+        tail = false;
+        fadeTo(0, function () { try { el.pause(); el.currentTime = 0; } catch (e) {} });
+      },
+      pause: function () { fadeTo(0, function () { if (!playing) return; try { el.pause(); } catch (e) {} }); },
+      resume: function () {
+        if (!playing) return;
+        stopFade();
+        play();
+        fadeTo(VOL);
+      }
+    };
+  })();
+  // game over jingle - interruptible, so acting on the game over screen cuts it
+  var OVER_SFX = (function () {
+    var el = new Audio("assets/sfx/tuomas_data-game-over-39-199830.mp3");
+    el.volume = 0.7;
+    return {
+      play: function () {
+        try { el.currentTime = 0; } catch (e) {}
+        var p = el.play();
+        if (p && p.catch) p.catch(function () {});
+      },
+      cut: function () { try { el.pause(); el.currentTime = 0; } catch (e) {} }
+    };
+  })();
+  // rats - XPenguins-style eye candy patrolling the browser window border.
+  // One more rat joins for every cave cleared. Rats run along the window's
+  // inner edge; RNG makes them pause to look around or wipe their whiskers,
+  // or simply turn around. Rats that touch bounce off each other, so a crowd
+  // jitters in place until idle times and speeds disperse it.
+  var RATS = (function () {
+    var SC = 2, TICK = 1 / 30, MAX = 100, LEN = 24; // sprite scale, sim rate, cap, bump distance
+    var cv = document.createElement("canvas"), g = cv.getContext("2d");
+    cv.style.cssText = "position:fixed;left:0;top:0;pointer-events:none;z-index:100;image-rendering:pixelated;";
+    document.body.appendChild(cv);
+    var PAL = { g: "#8f8f8f", d: "#5a5a5a", k: "#111111", w: "#dddddd", p: "#cc9999" };
+    var ART = {
+      runA: ["..........gg.", ".....gggggkg.", ".p..gggggggp.", "..p.ggggggg..", "....d...d...."],
+      runB: ["..........gg.", ".....gggggkg.", ".p..gggggggp.", "..p.ggggggg..", ".....d...d..."],
+      look: ["..........gg.", ".....gggggwg.", ".p..gggggggp.", "..p.ggggggg..", "....d...d...."],
+      wipe: [".........dgg.", ".....gggggkg.", ".p..gggggggp.", "..p.ggggggg..", "....d...d...."]
+    };
+    var SPR = {};
+    for (var name in ART) (function (rows) {
+      var c = document.createElement("canvas");
+      c.width = rows[0].length; c.height = rows.length;
+      var x = c.getContext("2d");
+      rows.forEach(function (row, y) {
+        for (var i = 0; i < row.length; i++) if (PAL[row[i]]) { x.fillStyle = PAL[row[i]]; x.fillRect(i, y, 1, 1); }
+      });
+      SPR[name] = c;
+    })(ART[name]);
+    var rats = [], P = 0, inT = 5, inL = 13; // track perimeter, insets so feet rest on the window edge
+    function layout() {
+      var oP = P;
+      cv.width = window.innerWidth; cv.height = window.innerHeight;
+      P = 2 * (cv.width - 2 * inL) + 2 * (cv.height - 2 * inT);
+      if (oP > 0) for (var i = 0; i < rats.length; i++) rats[i].s = (rats[i].s / oP) * P;
+    }
+    layout();
+    window.addEventListener("resize", layout);
+    function mod(s) { return ((s % P) + P) % P; }
+    function pt(s) { // track position -> screen x, y and clockwise travel angle
+      var w = cv.width, h = cv.height, top = w - 2 * inL, right = h - 2 * inT;
+      s = mod(s);
+      if (s < top) return { x: inL + s, y: inT, a: 0 };
+      s -= top;
+      if (s < right) return { x: w - inL, y: inT + s, a: Math.PI / 2 };
+      s -= right;
+      if (s < top) return { x: w - inL - s, y: h - inT, a: Math.PI };
+      s -= top;
+      return { x: inL, y: h - inT - s, a: Math.PI * 1.5 };
+    }
+    function spawn() {
+      if (rats.length >= MAX || P <= 0) return;
+      rats.push({
+        s: Math.random() * P, dir: Math.random() < 0.5 ? 1 : -1,
+        v: 55 + Math.random() * 40, // every rat runs at its own pace
+        st: "run", t: 0, f: 0
+      });
+    }
+    function topUp(n) { // skipping ahead to cave n still earns the crowd it implies
+      for (var i = rats.length; i < Math.min(n, MAX); i++) spawn();
+    }
+    function tick() {
+      for (var i = 0; i < rats.length; i++) {
+        var r = rats[i];
+        r.t += TICK;
+        if (r.st === "run") {
+          r.s = mod(r.s + r.dir * r.v * TICK);
+          r.f += TICK;
+          var roll = Math.random();
+          if (roll < 0.005) { r.st = roll < 0.003 ? "look" : "wipe"; r.t = 0; } // pause to idle
+          else if (roll < 0.008) r.dir = -r.dir; // or just turn around
+        } else if (r.t > 0.5 + Math.random() * 1.2) { r.st = "run"; r.t = 0; }
+      }
+      for (var i = 0; i < rats.length; i++) for (var j = i + 1; j < rats.length; j++) {
+        var a = rats[i], b = rats[j];
+        var ds = Math.abs(a.s - b.s); ds = Math.min(ds, P - ds);
+        if (ds < LEN) { // a meeting of rats: both head back the way they came
+          a.dir = -a.dir; b.dir = -b.dir;
+          var push = (LEN - ds) / 2 + 0.5;
+          if (a.st === "run") a.s = mod(a.s + a.dir * push);
+          if (b.st === "run") b.s = mod(b.s + b.dir * push);
+        }
+      }
+    }
+    var acc = 0;
+    function frame(dt) {
+      acc += Math.min(dt, 0.1);
+      while (acc >= TICK) { acc -= TICK; tick(); }
+      g.clearRect(0, 0, cv.width, cv.height);
+      for (var i = 0; i < rats.length; i++) {
+        var r = rats[i], p = pt(r.s);
+        var spr = r.st === "run" ? (Math.floor(r.f * 8) % 2 ? SPR.runB : SPR.runA) : SPR[r.st];
+        g.save();
+        g.translate(p.x, p.y);
+        g.rotate(r.dir > 0 ? p.a : p.a + Math.PI);
+        g.scale(SC, SC * (r.dir > 0 ? -1 : 1)); // feet toward the window edge, either direction
+        g.drawImage(spr, -spr.width / 2, -spr.height / 2);
+        g.restore();
+      }
+    }
+    return { spawn: spawn, topUp: topUp, frame: frame };
   })();
   var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
@@ -86,7 +312,7 @@
     st = mkState(genLevel(n));
     game.level = n;
   }
-  function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); }
+  function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); MUSIC.start(n); RATS.topUp(n); }
 
   function menu() {
     mode = STATE.MENU;
@@ -102,13 +328,15 @@
     } else {
       msg += "<br><br><span style='color:#fff'>SPACE &mdash; start</span>";
     }
-    show("BOULDER HERMAN", msg, "#0f0");
+    show("BOULDERING HERMAN AND THE SLOPPY ROCKS", msg, "#0f0");
   }
 
   function onDeath() {
     game.lives--;
     if (game.lives <= 0) {
       mode = STATE.OVER;
+      MUSIC.stop();
+      OVER_SFX.play();
       save();
       show("GAME OVER", "The cave claimed another Herman.<br>Final score: " + game.score +
         "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#f00");
@@ -122,8 +350,10 @@
   function onComplete() {
     game.score += Math.floor(st.time) * 5;
     save();
+    RATS.spawn();
     if (game.level >= 100) {
       mode = STATE.WIN;
+      MUSIC.stop();
       show("YOU WIN!", "All 100 caves cleared. Herman can finally rest.<br>Final score: " + game.score +
         "<br><br><span class='blink'>SPACE &mdash; back to menu</span>", "#ff0");
       return;
@@ -547,10 +777,12 @@
     }
     fit(); // cheap: only writes styles when the integer multiplier changes
     render(now / 1000);
+    RATS.frame(dt);
     requestAnimationFrame(loop);
   }
 
   document.addEventListener("keydown", function (e) {
+    AUD.wake();
     var k = e.key;
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].indexOf(k) >= 0) e.preventDefault();
     if (k === "ArrowLeft" || k === "a" || k === "A") { held.l = true; if (!e.repeat) tap("l"); }
@@ -558,18 +790,18 @@
     if (k === "ArrowUp" || k === "w" || k === "W") { held.u = true; if (!e.repeat) tap("u"); }
     if (k === "ArrowDown" || k === "s" || k === "S") { held.d = true; if (!e.repeat) tap("d"); }
     if (k === " ") {
-      if (mode === STATE.MENU) { game = { level: 1, score: 0, lives: 3 }; startLevel(1); }
-      else if (mode === STATE.DEAD) { startLevel(game.level); }
-      else if (mode === STATE.DONE) { startLevel(game.level + 1); }
-      else if (mode === STATE.OVER || mode === STATE.WIN) { menu(); }
+      if (mode === STATE.MENU) { SND.confirm(); game = { level: 1, score: 0, lives: 3 }; startLevel(1); }
+      else if (mode === STATE.DEAD) { SND.confirm(); startLevel(game.level); }
+      else if (mode === STATE.DONE) { SND.confirm(); startLevel(game.level + 1); }
+      else if (mode === STATE.OVER || mode === STATE.WIN) { SND.confirm(); OVER_SFX.cut(); menu(); }
     }
     if ((k === "c" || k === "C") && mode === STATE.MENU) {
       var sv = load();
-      if (sv && sv.level > 1) { game = sv; startLevel(sv.level); }
+      if (sv && sv.level > 1) { SND.confirm(); game = sv; startLevel(sv.level); }
     }
     if (k === "p" || k === "P") {
-      if (mode === STATE.PLAY) { mode = STATE.PAUSE; show("PAUSED", "<span class='blink'>P &mdash; resume</span>", "#ff0"); }
-      else if (mode === STATE.PAUSE) { mode = STATE.PLAY; hide(); }
+      if (mode === STATE.PLAY) { mode = STATE.PAUSE; MUSIC.pause(); show("PAUSED", "<span class='blink'>P &mdash; resume</span>", "#ff0"); }
+      else if (mode === STATE.PAUSE) { mode = STATE.PLAY; MUSIC.resume(); hide(); }
     }
     if ((k === "r" || k === "R") && mode === STATE.PLAY) { startLevel(game.level); }
   });

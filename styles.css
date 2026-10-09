@@ -1,8 +1,13 @@
+  /* free medieval fonts (SIL OFL) via Google Fonts, stored locally in assets/fonts */
+  @font-face { font-family:"Pirata One"; src:url("assets/fonts/Pirata_One.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
+  @font-face { font-family:"Uncial Antiqua"; src:url("assets/fonts/Uncial_Antiqua.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
+  @font-face { font-family:"Almendra"; src:url("assets/fonts/Almendra.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
+  @font-face { font-family:"MedievalSharp"; src:url("assets/fonts/MedievalSharp.woff2") format("woff2"); font-weight:400; font-style:normal; font-display:swap; }
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#000 url("assets/cave_bg.gif"); min-height:100vh; display:flex; flex-direction:column;
-         align-items:center; justify-content:center; font-family:"Courier New",monospace; color:#c0c0c0; }
-  h1 { font-size:16px; letter-spacing:2px; color:#0f0; margin:4px 0 2px; }
-  #hud { width:648px; display:flex; justify-content:space-between; font-size:13px;
+         align-items:center; justify-content:center; font-family:"Almendra",serif; color:#c0c0c0; }
+  h1 { font-family:"Pirata One",serif; font-size:24px; letter-spacing:2px; color:#0f0; margin:4px 0 2px; }
+  #hud { width:648px; display:flex; justify-content:space-between; font-family:"MedievalSharp",cursive; font-size:13px;
          padding:3px 6px; background:#0f0; color:#000; border:2px solid #000; font-weight:bold; }
   #wrap { position:relative; }
   canvas { background:#000; border:4px solid #646464; display:block; position:relative; z-index:0;
@@ -14,8 +19,7 @@
              align-items:center; justify-content:center; background:rgba(0,0,0,.78); text-align:center;
              font-size:15px; }
   #overlay.hidden { display:none; }
-  #ov-title { font-size:2em; color:#f00; }
-  #ov-msg { font-size:1em; color:#0f0; line-height:1.7; }
-  .blink { animation:blink 1s infinite; color:#fff; }
+  #ov-title { font-family:"Pirata One",serif; font-size:1.8em; color:#f00; }
+  #ov-msg { font-family:"Almendra",serif; font-size:1.05em; color:#0f0; line-height:1.7; }
+  .blink { font-family:"Uncial Antiqua",serif; animation:blink 1s infinite; color:#fff; }
   @keyframes blink { 50% { opacity:0; } }
-  #foot { font-size:12px; color:#646464; margin:4px 0 8px; max-width:900px; text-align:center; }
