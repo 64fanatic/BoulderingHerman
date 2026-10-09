@@ -26,3 +26,4 @@ burst into diamonds.
 - `styles.css` — all styling
 - `src/engine.js` — pure game logic: cave generation, physics, enemies, movement (no DOM)
 - `src/main.js` — rendering, input, game state machine
+# Boulder Herman
