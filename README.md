@@ -1,6 +1,6 @@
 # Bouldering Herman and the Sloppy Rocks
 
-This is a Boulder Dash-style game with 100 procedurally generated caves, but it's actually a fan game inspired by Herman and the Falling Rocks for Windows 3.x developed by CARMACON, Inc. who incredibly still has an active website where you can...mail order your full release physical game after enjoying the Shareware (demo) release from 1992. Just click on the amazing box art:
+This is a Boulder Dash-style game with 100 procedurally generated caves. Static on your end, not a random 100 each launch. Cool future maybe idea. This is actually a fan game inspired by a clone called Herman and the Falling Rocks for Windows 3.x developed by CARMACON, Inc. who incredibly still has an active website where you can...mail order your full release physical game after enjoying the Shareware (demo) release from 1992. Just click on the amazing box art:
 
 [![Herman and the Falling Rocks](readme/images/frk_pk.gif)](https://carmacon.com/hermfrk.html)
 
