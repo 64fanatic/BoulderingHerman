@@ -1,0 +1,19 @@
+GIMP Palette
+Name: Boulder Herman
+Columns: 4
+#
+  0   0   0	black [K]
+128 128   0	olive [O]
+128   0   0	dark red [R]
+255   0   0	bright red [r]
+  0 255   0	bright green [G]
+  0 128   0	dark green [g]
+128 128 128	gray [A]
+100 100 100	dark gray [a]
+255 255   0	yellow [Y]
+  0   0 128	navy [N]
+  0   0 255	blue [B]
+240 240 240	light gray [W]
+255 255 255	white [w]
+245 145 143	salmon (nose) [S]
+192   0 192	purple (lips) [V]

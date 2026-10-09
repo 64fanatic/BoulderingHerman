@@ -18,8 +18,9 @@ and mosey on over to http://localhost:8000.
 
 ![Herman mid-dig in cave 1, boulders looming overhead](readme/images/ingame1.png)
 
-Herman contemplates his next move in cave 1. That's him in the corner — the pale fellow
-with the fashionably distressed face. See the cyan diamonds? He wants those.
+Herman contemplates his next move in cave 1. That's him in the corner — the pale
+fellow with the purple lips, the grin that has seen things, and the nose he is
+very proud of. See the cyan diamonds? He wants those.
 See the boulders hanging around overhead? Those want *him*. This is the whole game,
 really: a series of increasingly poor decisions about gravity.
 
@@ -45,3 +46,9 @@ For the curious and the code-inclined:
 - `styles.css` — all the pretty
 - `src/engine.js` — the brain: pure game logic. Cave generation, physics, enemies, movement. Zero DOM, zero drama.
 - `src/main.js` — the face: rendering, input, and the game state machine that keeps it all honest
+- `tiles/` — every 16x16 sprite as an editable PNG, plus the palette
+- `tools/tiles_io.py` — bake your tile edits into the game (see `tiles/README.md`)
+
+Feeling artistic? Every sprite in the game is a 16x16 PNG you can redraw in
+LibreSprite — Herman's creepy purple-lipped face included. Edit a tile, run one
+command, and your art is in the game.

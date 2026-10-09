@@ -116,7 +116,8 @@
   // 16-color VGA style, tiles traced pixel-for-pixel from the classic look
   var PAL = {
     K: "#000", O: "#808000", R: "#800000", r: "#f00", G: "#0f0", g: "#008000",
-    A: "#808080", a: "#646464", Y: "#ff0", N: "#000080", B: "#00f", W: "#f0f0f0", w: "#fff"
+    A: "#808080", a: "#646464", Y: "#ff0", N: "#000080", B: "#00f", W: "#f0f0f0", w: "#fff",
+    S: "#f5918f", V: "#c000c0"
   };
   var DIRT_ART = [
     "KORYRgRrgORgRORO",
@@ -191,21 +192,21 @@
     "KKKKAKAAKAKAKKKK"
   ];
   var HERMAN_ART = [
-    "................",
-    "....gggggggg....",
-    "...gGGGGGGGGGg..",
-    "...gGGGGGGGGGg..",
-    "...gGGKKGKKGGg..",
-    "...gGGKWGKWGGg..",
-    "...gGGGGGGGGGg..",
-    "...gGGKKKKGGGg..",
-    "...gGGGGGGGGGg..",
-    "..gGGGGGGGGGGg..",
-    "..gGGrrrrrrGGg..",
-    "..gGGGGGGGGGGg..",
-    "...gGGGGGGGGg...",
-    "...gGGg..gGGg...",
-    "....gg....gg....",
+    "...wwwwKKwwww...",
+    "...wwwwwwwwww...",
+    "..wwBBBwwBBBww..",
+    ".wwwBYBSSBYBwww.",
+    "wwwwBBBKKBBBwwww",
+    "wVVVVVVVVVVVVVVw",
+    "wVKKKKwKwKwKKKVw",
+    "wwVVKKKKKKKKVVww",
+    "wwwVVVKwKwVVVwww",
+    ".wwwVVVVVVVVwww.",
+    "..wwwVVVVVVwww..",
+    "...wwwwwwwwww...",
+    "....wwwwwwww....",
+    ".....wwwwww.....",
+    "......wwww......",
     "................"
   ];
   var FLY_A = [
@@ -226,9 +227,24 @@
     "................",
     "................"
   ];
-  var FLY_B = FLY_A.map(function (row, i) {
-    return i === 4 ? ".KrrrrrrrrrrrrK." : i === 5 ? ".KrrKKrrrrKKrrK." : row;
-  });
+  var FLY_B = [
+    "................",
+    "...KKKKKKKKKK...",
+    "..KrrrrrrrrrrK..",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrKKrrrrKKrrK.",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrrrrrrrrrrrK.",
+    ".KrrrrrrrrrrrrK.",
+    "..KrrrrrrrrrrK..",
+    "...KKKKKKKKKK...",
+    "................",
+    "................",
+    "................",
+    "................"
+  ];
   var BUT_A = [
     "................",
     "...OOOOOOOOOO...",
@@ -247,9 +263,24 @@
     "................",
     "................"
   ];
-  var BUT_B = BUT_A.map(function (row, i) {
-    return i === 4 ? ".OYYYYYYYYYYYYO." : i === 5 ? ".OYYKKYYYYKKYYO." : row;
-  });
+  var BUT_B = [
+    "................",
+    "...OOOOOOOOOO...",
+    "..OYYYYYYYYYYO..",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYKKYYYYKKYYO.",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYYYYYYYYYYYO.",
+    ".OYYYYYYYYYYYYO.",
+    "..OYYYYYYYYYYO..",
+    "...OOOOOOOOOO...",
+    "................",
+    "................",
+    "................",
+    "................"
+  ];
   var EXIT_ART = [
     "................",
     ".KKKKKKKKKKKKK..",
@@ -268,12 +299,42 @@
     "................",
     "................"
   ];
-  function recolor(art, map) {
-    return art.map(function (row) {
-      return row.split("").map(function (c) { return map[c] || c; }).join("");
-    });
-  }
-  var EXIT_OPEN = [recolor(EXIT_ART, { R: "Y", r: "Y" }), recolor(EXIT_ART, { R: "W", r: "W" })];
+  var EXIT_OPEN_A = [
+    "................",
+    ".KKKKKKKKKKKKK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYKYYYK..",
+    ".KYYYYYYYKYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KYYYYYYYYYYYK..",
+    ".KKKKKKKKKKKKK..",
+    "................",
+    "................"
+  ];
+  var EXIT_OPEN_B = [
+    "................",
+    ".KKKKKKKKKKKKK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWKWWWK..",
+    ".KWWWWWWWKWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KWWWWWWWWWWWK..",
+    ".KKKKKKKKKKKKK..",
+    "................",
+    "................"
+  ];
   function makeTile(art) {
     var c = document.createElement("canvas");
     c.width = TS; c.height = TS;
@@ -291,7 +352,7 @@
   var T_DIRT = makeTile(DIRT_ART), T_BRICK = makeTile(BRICK_ART), T_FLOWER = makeTile(FLOWER_ART),
       T_BOULDER = makeTile(BOULDER_ART), T_HERMAN = makeTile(HERMAN_ART),
       T_FLY = [makeTile(FLY_A), makeTile(FLY_B)], T_BUT = [makeTile(BUT_A), makeTile(BUT_B)],
-      T_EXIT = [makeTile(EXIT_ART), makeTile(EXIT_OPEN[0]), makeTile(EXIT_OPEN[1])];
+      T_EXIT = [makeTile(EXIT_ART), makeTile(EXIT_OPEN_A), makeTile(EXIT_OPEN_B)];
 
   function render(t) {
     if (!st) return;
