@@ -6,6 +6,8 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#000 url("assets/cave_bg.gif"); min-height:100vh; display:flex; flex-direction:column;
          align-items:center; justify-content:center; font-family:"Almendra",serif; color:#c0c0c0; }
+  body::before { content:""; position:fixed; inset:0; background:#000; opacity:.5;
+                 z-index:-1; pointer-events:none; } /* darkens the cave backdrop, under the fog and the game */
   #hud { width:648px; display:flex; justify-content:space-between; font-family:"MedievalSharp",cursive; font-size:13px;
          padding:3px 6px; background:#4a1512 url("assets/hud_cobble.gif") center/100% 100% no-repeat;
          image-rendering:pixelated; color:#e8e6d6;

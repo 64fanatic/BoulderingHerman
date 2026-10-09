@@ -183,6 +183,43 @@
       }
     };
   })();
+  // menu theme - the eerie cave loop for the title screen and its sub-screens,
+  // except AUDIO, where it would fight the sound test. It fades out when a
+  // game starts and back in on every return to the menu. Browsers refuse to
+  // play before the first user gesture, so sync() just retries on every key
+  // press until it sticks.
+  var MENU_MUSIC = (function () {
+    var el = new Audio("assets/background audio/menu_theme.mp3");
+    el.loop = true;
+    var vol = 0.5, playing = false, timer = null;
+    function fade(to, ms, done) {
+      if (timer) { clearInterval(timer); timer = null; }
+      var from = el.volume, t0 = performance.now();
+      timer = setInterval(function () {
+        var k = (performance.now() - t0) / ms;
+        if (k >= 1) { el.volume = to; clearInterval(timer); timer = null; if (done) done(); return; }
+        el.volume = Math.max(0, Math.min(1, from + (to - from) * k));
+      }, 40);
+    }
+    function sync() {
+      var want = mode === STATE.MENU || mode === STATE.HELP || mode === STATE.LEVELSEL;
+      if (want && !playing) {
+        playing = true;
+        try { el.currentTime = 0; } catch (e) {}
+        el.volume = 0;
+        var p = el.play();
+        if (p && p.catch) p.catch(function () { playing = false; }); // no gesture yet: retried on the next key
+        fade(vol, 1500);
+      } else if (!want && playing) {
+        playing = false;
+        fade(0, 500, function () { try { el.pause(); el.currentTime = 0; } catch (e) {} });
+      }
+    }
+    return {
+      sync: sync,
+      volume: function (v) { vol = Math.min(1, Math.max(0, v)); if (playing) fade(vol, 200); }
+    };
+  })();
   // game over jingle - interruptible, so acting on the game over screen cuts it.
   // A fresh element per play, like SND: a page-load element whose first play()
   // fires outside a user gesture gets autoplay-blocked, and the swallowed
@@ -214,6 +251,7 @@
     function save() { try { localStorage.setItem(KEY, JSON.stringify(vals)); } catch (e) {} }
     function apply() {
       MUSIC.volume(0.5 * gain(vals.music)); // 0.5 dB-relative: the designed music level
+      MENU_MUSIC.volume(0.5 * gain(vals.music));
       SND.setSound(gain(vals.sound));
       SND.setStep(gain(vals.step));
       OVER_SFX.volume(0.7 * gain(vals.sound));
@@ -391,6 +429,60 @@
     }
     return { spawn: spawn, topUp: topUp, frame: frame, reset: function () { rats.length = 0; } };
   })();
+  // background fog - dithered, sprite-based, Saturn-style: two seamless fog
+  // tiles drawn with an ordered 4x4 Bayer dither, so the darkened cave shows
+  // through the dot pattern and the fog reads as translucent without any real
+  // alpha. The tiles drift on slow wandering paths - the heading random-walks
+  // under half a radian per second, so turns are gradual and nothing snaps.
+  // Renders above the black background veil, below the game and HUD.
+  var FOG = (function () {
+    var cv = document.createElement("canvas"), g = cv.getContext("2d");
+    cv.style.cssText = "position:fixed;left:0;top:0;pointer-events:none;z-index:-1;";
+    document.body.appendChild(cv);
+    var S = 256; // fog tile size; every sine in the noise wraps whole cycles, so it tiles seamlessly
+    var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5]; // 4x4 ordered dither
+    function makeTile(kx, ky, ph, cut, color) {
+      var r = parseInt(color.slice(1, 3), 16), gr = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+      var c = document.createElement("canvas"); c.width = S; c.height = S;
+      var x2 = c.getContext("2d");
+      var img = x2.createImageData(S, S), d = img.data;
+      for (var y = 0; y < S; y++) for (var x = 0; x < S; x++) {
+        var v = 0, a = 1;
+        for (var o = 0; o < 4; o++) {
+          v += a * Math.sin(6.283 * (kx[o] * x + ky[o] * y) / S + ph[o]);
+          a *= 0.55;
+        }
+        var t = Math.max(0, Math.min(1, ((v + 2.05) / 4.1 - cut) * 3));
+        if (t > (BAYER[(x & 3) + ((y & 3) << 2)] + 0.5) / 16) {
+          var i = (y * S + x) * 4;
+          d[i] = r; d[i + 1] = gr; d[i + 2] = b; d[i + 3] = 255;
+        }
+      }
+      x2.putImageData(img, 0, 0);
+      return c;
+    }
+    var layers = [ // far: dim, sparse, slow; near: brighter, thicker, quicker
+      { t: makeTile([1, 3, 2, 5], [2, 1, 4, 3], [0.3, 2.1, 4.2, 1.1], 0.45, "#757d8a"), a: Math.random() * 6.28, v: 9, x: 0, y: 0 },
+      { t: makeTile([2, 1, 4, 3], [1, 3, 2, 5], [1.7, 0.4, 3.3, 5.2], 0.25, "#a9b3c1"), a: Math.random() * 6.28, v: 15, x: 0, y: 0 }
+    ];
+    function layout() { cv.width = window.innerWidth; cv.height = window.innerHeight; }
+    layout();
+    window.addEventListener("resize", layout);
+    function frame(dt) {
+      g.clearRect(0, 0, cv.width, cv.height);
+      for (var i = 0; i < layers.length; i++) {
+        var l = layers[i];
+        l.a += (Math.random() - 0.5) * dt; // the heading drifts into slow curves, never snap turns
+        l.x += Math.cos(l.a) * l.v * dt;
+        l.y += Math.sin(l.a) * l.v * dt;
+        var bx = ((l.x % S) + S) % S - S, by = ((l.y % S) + S) % S - S;
+        for (var y = by; y < cv.height; y += S)
+          for (var x = bx; x < cv.width; x += S)
+            g.drawImage(l.t, x, y);
+      }
+    }
+    return { frame: frame };
+  })();
   var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7, AUDIO: 8, LEVELSEL: 9 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3, flowers: 0 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
@@ -421,13 +513,14 @@
     st = mkState(genLevel(n));
     game.level = n;
   }
-  function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); MUSIC.start(n); RATS.topUp(n); }
+  function startLevel(n) { loadLevel(n); queue.length = 0; mode = STATE.PLAY; hide(); MENU_MUSIC.sync(); MUSIC.start(n); RATS.topUp(n); }
 
   var menuSel = 0, menuActs = [], helpOff = 0;
   function hint(txt) { ovHint.textContent = txt; }
 
   function menu() {
     mode = STATE.MENU;
+    MENU_MUSIC.sync();
     renderMenu();
   }
 
@@ -453,6 +546,7 @@
 
   function showHelp() {
     mode = STATE.HELP;
+    MENU_MUSIC.sync();
     helpOff = 0;
     show("INSTRUCTIONS",
       "<div id='help-scroll'>" +
@@ -488,6 +582,7 @@
   var LEVEL_CELLS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "C", "0", "GO"];
   function showLevelSel() {
     mode = STATE.LEVELSEL;
+    MENU_MUSIC.sync();
     levelSel = 0; levelEntry = "";
     renderLevelSel();
   }
@@ -563,6 +658,7 @@
   }
   function showAudio() {
     mode = STATE.AUDIO;
+    MENU_MUSIC.sync(); // the sound test needs silence: the theme waits outside
     renderAudio();
   }
 
@@ -1101,6 +1197,7 @@
     fit(); // cheap: only writes styles when the integer multiplier changes
     render(now / 1000);
     RATS.frame(dt);
+    FOG.frame(dt);
     PAD.frame();
     requestAnimationFrame(loop);
   }
@@ -1242,6 +1339,7 @@
 
   document.addEventListener("keydown", function (e) {
     AUD.wake();
+    MENU_MUSIC.sync(); // also the retry path when autoplay blocked the theme at boot
     if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].indexOf(e.key) >= 0) e.preventDefault();
     pressKey(e.key, e.repeat);
   });

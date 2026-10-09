@@ -36,6 +36,7 @@
 
 **In-house AI-generated sound effects**
 - WAV sound effects generated in-house with the make_sfx tooling.
+- Title-screen theme (menu_theme.mp3) generated in-house with the make_menu_theme tooling.
 - Made with Mistral Vibe CLI.
 
 ## Development
