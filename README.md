@@ -3,6 +3,7 @@
 This is a Boulder Dash-style game with 100 procedurally generated caves, but it's actually a fan game inspired by Herman and the Falling Rocks for Windows 3.x developed by CARMACON, Inc. who incredibly still has an active website where you can...mail order your full release physical game after enjoying the Shareware (demo) release from 1992.
 
 https://carmacon.com/hermfrk.html
+
 https://www.mobygames.com/game/233178/herman-and-the-falling-rocks/
 
 That concept is the base I'm working with and I'll add some more features beyond what the 1992 original was capable of in my vibe slop edumacation journey, and probably end up going too far is a couple places.
