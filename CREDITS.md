@@ -4,7 +4,7 @@
 
 **Project code and in-house assets**
 - The game code, generated art, and in-house synthesized sounds are released
-  under the MIT License — full text bundled at `License/MIT.txt`.
+  under the MIT License — full text at the repository root in `LICENSE`.
 - Bundled third-party fonts remain under the SIL Open Font License 1.1
   (`License/OFL.txt`); third-party audio is covered by the licenses noted in
   the sections below.
