@@ -226,32 +226,89 @@
     };
   })();
   // rats - XPenguins-style eye candy patrolling the browser window border.
-  // One more rat joins for every cave cleared. Rats run along the window's
-  // inner edge; RNG makes them pause to look around or wipe their whiskers,
-  // or simply turn around. Rats that touch bounce off each other, so a crowd
-  // jitters in place until idle times and speeds disperse it.
+  // One more rat joins for every cave cleared, in one of three coats (grey,
+  // darker ash, ginger) rolled at spawn. Rats run along the window's inner
+  // edge; RNG makes them pause to stand up on their hind legs and look around,
+  // glance about, or wipe their whiskers, or simply turn around. Rats that
+  // touch bounce off each other, so a crowd jitters in place until idle times
+  // and speeds disperse it.
   var RATS = (function () {
     var SC = 2, TICK = 1 / 30, MAX = 100, LEN = 24; // sprite scale, sim rate, cap, bump distance
     var cv = document.createElement("canvas"), g = cv.getContext("2d");
     cv.style.cssText = "position:fixed;left:0;top:0;pointer-events:none;z-index:100;background:transparent;image-rendering:pixelated;";
     document.body.appendChild(cv);
-    var PAL = { g: "#8f8f8f", d: "#5a5a5a", k: "#111111", w: "#dddddd", p: "#cc9999" };
-    var ART = {
-      runA: ["..........gg.", ".....gggggkg.", ".p..gggggggp.", "..p.ggggggg..", "....d...d...."],
-      runB: ["..........gg.", ".....gggggkg.", ".p..gggggggp.", "..p.ggggggg..", ".....d...d..."],
-      look: ["..........gg.", ".....gggggwg.", ".p..gggggggp.", "..p.ggggggg..", "....d...d...."],
-      wipe: [".........dgg.", ".....gggggkg.", ".p..gggggggp.", "..p.ggggggg..", "....d...d...."]
+    var PALS = [ // three coats: grey, darker ash, ginger
+      { g: "#8f8f8f", d: "#5a5a5a", k: "#111111", w: "#dddddd", p: "#cc9999" },
+      { g: "#6f6f6f", d: "#3c3c3c", k: "#111111", w: "#dddddd", p: "#cc9999" },
+      { g: "#bd7136", d: "#7c431d", k: "#111111", w: "#dddddd", p: "#cc9999" }
+    ];
+    var ART = { // legs: 2px dark with pink feet; stand: upright on hind legs, glancing around
+      runA: [
+        "..........gg.",
+        ".....gggggkg.",
+        ".p..gggggggp.",
+        "..p.ggggggg..",
+        "..dd.....dd..",
+        "..pp.....pp.."
+      ],
+      runB: [
+        "..........gg.",
+        ".....gggggkg.",
+        ".p..gggggggp.",
+        "..p.ggggggg..",
+        "....dd.dd....",
+        "....pp.pp...."
+      ],
+      look: [
+        "..........gg.",
+        ".....gggggwg.",
+        ".p..gggggggp.",
+        "..p.ggggggg..",
+        "...dd...dd...",
+        "...pp...pp..."
+      ],
+      wipe: [
+        ".........dgg.",
+        ".....gggggkg.",
+        ".p..gggggggp.",
+        "..p.ggggggg..",
+        "...dd...dd...",
+        "...pp...pp..."
+      ],
+      standA: [
+        "..........gg.",
+        ".........gkg.",
+        ".........gggp",
+        "........pgg..",
+        "........gg...",
+        ".......ggg...",
+        "......dd.dd..",
+        "..ppp.pp..pp."
+      ],
+      standB: [
+        "..........gg.",
+        ".........gwg.",
+        ".........gggp",
+        "........pgg..",
+        "........gg...",
+        ".......ggg...",
+        "......dd.dd..",
+        "..ppp.pp..pp."
+      ]
     };
-    var SPR = {};
-    for (var name in ART) (function (rows) {
-      var c = document.createElement("canvas");
-      c.width = rows[0].length; c.height = rows.length;
-      var x = c.getContext("2d");
-      rows.forEach(function (row, y) {
-        for (var i = 0; i < row.length; i++) if (PAL[row[i]]) { x.fillStyle = PAL[row[i]]; x.fillRect(i, y, 1, 1); }
-      });
-      SPR[name] = c;
-    })(ART[name]);
+    var SPR = []; // SPR[coat][pose], one sprite set per coat
+    for (var v = 0; v < PALS.length; v++) {
+      SPR.push({});
+      for (var name in ART) (function (rows, pal, set) {
+        var c = document.createElement("canvas");
+        c.width = rows[0].length; c.height = rows.length;
+        var x = c.getContext("2d");
+        rows.forEach(function (row, y) {
+          for (var i = 0; i < row.length; i++) if (pal[row[i]]) { x.fillStyle = pal[row[i]]; x.fillRect(i, y, 1, 1); }
+        });
+        set[name] = c;
+      })(ART[name], PALS[v], SPR[v]);
+    }
     var rats = [], P = 0, inT = 5, inL = 13; // track perimeter, insets so feet rest on the window edge
     function layout() {
       var oP = P;
@@ -278,6 +335,7 @@
       rats.push({
         s: Math.random() * P, dir: Math.random() < 0.5 ? 1 : -1,
         v: 55 + Math.random() * 40, // every rat runs at its own pace
+        c: Math.floor(Math.random() * PALS.length), // coat: grey, ash or ginger
         st: "run", t: 0, f: 0
       });
     }
@@ -292,9 +350,11 @@
           r.s = mod(r.s + r.dir * r.v * TICK);
           r.f += TICK;
           var roll = Math.random();
-          if (roll < 0.005) { r.st = roll < 0.003 ? "look" : "wipe"; r.t = 0; } // pause to idle
+          if (roll < 0.005) { // pause to idle: stand up, glance about, or wipe whiskers
+            r.st = roll < 0.0015 ? "stand" : roll < 0.003 ? "look" : "wipe"; r.t = 0;
+          }
           else if (roll < 0.008) r.dir = -r.dir; // or just turn around
-        } else if (r.t > 0.5 + Math.random() * 1.2) { r.st = "run"; r.t = 0; }
+        } else if (r.t > (r.st === "stand" ? 1.4 : 0) + 0.5 + Math.random() * 1.2) { r.st = "run"; r.t = 0; }
       }
       for (var i = 0; i < rats.length; i++) for (var j = i + 1; j < rats.length; j++) {
         var a = rats[i], b = rats[j];
@@ -313,8 +373,10 @@
       while (acc >= TICK) { acc -= TICK; tick(); }
       g.clearRect(0, 0, cv.width, cv.height);
       for (var i = 0; i < rats.length; i++) {
-        var r = rats[i], p = pt(r.s);
-        var spr = r.st === "run" ? (Math.floor(r.f * 8) % 2 ? SPR.runB : SPR.runA) : SPR[r.st];
+        var r = rats[i], p = pt(r.s), set = SPR[r.c];
+        var spr = r.st === "run" ? (Math.floor(r.f * 8) % 2 ? set.runB : set.runA)
+          : r.st === "stand" ? (Math.floor(r.t * 4) % 2 ? set.standB : set.standA) // glances left and right
+          : set[r.st];
         g.save();
         g.translate(p.x, p.y);
         g.rotate(r.dir > 0 ? p.a : p.a + Math.PI);
@@ -323,9 +385,9 @@
         g.restore();
       }
     }
-    return { spawn: spawn, topUp: topUp, frame: frame };
+    return { spawn: spawn, topUp: topUp, frame: frame, reset: function () { rats.length = 0; } };
   })();
-  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7, AUDIO: 8 };
+  var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7, AUDIO: 8, LEVELSEL: 9 };
   var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
   var queue = []; // buffered taps, consumed one per tick, so quick presses are never lost
@@ -368,8 +430,9 @@
   function renderMenu() {
     var sv = load();
     var labels = [], acts = [];
-    labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3 }; startLevel(1); });
+    labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3 }; RATS.reset(); startLevel(1); });
     if (sv && sv.level > 1) labels.push("CONTINUE AT CAVE " + sv.level), acts.push(function () { game = sv; startLevel(sv.level); });
+    labels.push("LEVEL SELECT"); acts.push(showLevelSel);
     labels.push("AUDIO"); acts.push(showAudio);
     labels.push("INSTRUCTIONS"); acts.push(showHelp);
     if (menuSel >= labels.length) menuSel = 0;
@@ -397,7 +460,9 @@
       "100 caves, each harder than the last.<br><br>" +
       "<span style='color:#fff'>MOVE — arrow keys or WASD</span><br>" +
       "<span style='color:#fff'>P — pause &nbsp;|&nbsp; R — restart cave</span><br>" +
-      "<span style='color:#fff'>SPACE — select &nbsp;|&nbsp; ESC — back</span>" +
+      "<span style='color:#fff'>SPACE — select &nbsp;|&nbsp; ESC — back</span><br>" +
+      "<span style='color:#fff'>GAMEPAD — stick/D-pad moves, A selects, B backs out,</span><br>" +
+      "<span style='color:#fff'>Start pauses, Select restarts the cave</span>" +
       "</div>", "#ff0");
     ovMsg.classList.add("scrolling");
     scrollHelp(0);
@@ -411,6 +476,69 @@
     var step = Math.ceil(parseFloat(getComputedStyle(ovMsg).fontSize) * 1.7);
     helpOff = Math.max(0, Math.min(max, helpOff + d * step));
     inner.style.transform = "translateY(" + (-helpOff) + "px)";
+  }
+
+  // level select - a numpad-style 0-9 grid (plus C and GO) for picking any of
+  // the 100 caves. Navigate with the movement keys, digits type directly.
+  var levelSel = 0, levelEntry = "";
+  var LEVEL_CELLS = ["7", "8", "9", "4", "5", "6", "1", "2", "3", "C", "0", "GO"];
+  function showLevelSel() {
+    mode = STATE.LEVELSEL;
+    levelSel = 0; levelEntry = "";
+    renderLevelSel();
+  }
+  function pressLevelCell(i) {
+    var c = LEVEL_CELLS[i];
+    if (c === "GO") {
+      var n = parseInt(levelEntry, 10);
+      if (!n) { SND.select(); return; } // nothing typed: nothing to start
+      n = Math.min(100, Math.max(1, n));
+      SND.confirm();
+      game = { level: n, score: 0, lives: 3 }; // a warp is a fresh run
+      RATS.reset();
+      startLevel(n);
+    } else if (c === "C") {
+      SND.select(); levelEntry = ""; renderLevelSel();
+    } else if (levelEntry.length < 3 && parseInt(levelEntry + c, 10) <= 100) {
+      SND.select(); levelEntry += c; renderLevelSel();
+    }
+  }
+  function renderLevelSel() {
+    var html = "<div style='color:#fff;margin-bottom:" + (10 * fitK) + "px'>CAVE " +
+      (levelEntry.length ? "<span style='color:#ff0'>" + levelEntry + "</span>" : "_") + " / 100</div>";
+    for (var r = 0; r < 4; r++) {
+      html += "<div style='line-height:1.9'>";
+      for (var c = 0; c < 3; c++) {
+        var i = r * 3 + c, sel = i === levelSel;
+        html += "<span style='display:inline-block;width:33%;color:" + (sel ? "#fff" : "#0f0") + "'>" +
+          (sel ? "&raquo; " : "&nbsp;&nbsp;") + LEVEL_CELLS[i] + "</span>";
+      }
+      html += "</div>";
+    }
+    show("LEVEL SELECT", html, "#ff0");
+    hint("SPACE / A — PRESS | ESC / B — BACK");
+  }
+
+  // pause menu - resume, or bail out to the main menu. Quitting saves the run,
+  // so CONTINUE AT CAVE picks it back up with the lives it had.
+  var pauseSel = 0;
+  function resume() { mode = STATE.PLAY; MUSIC.resume(); hide(); }
+  function quitToMenu() {
+    SND.confirm();
+    save();
+    MUSIC.stop();
+    menu();
+  }
+  function showPause() { mode = STATE.PAUSE; MUSIC.pause(); pauseSel = 0; renderPause(); }
+  function renderPause() {
+    var items = ["RESUME", "QUIT TO MENU"];
+    var html = "";
+    for (var i = 0; i < items.length; i++) {
+      html += "<div style='line-height:1.9;color:" + (i === pauseSel ? "#fff" : "#0f0") + "'>" +
+        (i === pauseSel ? "&raquo; " : "&nbsp;&nbsp;") + items[i] + "</div>";
+    }
+    show("PAUSED", html, "#ff0");
+    hint("SPACE — SELECT | ESC / P — RESUME");
   }
 
   var audioSel = 0;
@@ -947,18 +1075,18 @@
     fit(); // cheap: only writes styles when the integer multiplier changes
     render(now / 1000);
     RATS.frame(dt);
+    PAD.frame();
     requestAnimationFrame(loop);
   }
 
-  document.addEventListener("keydown", function (e) {
-    AUD.wake();
-    var k = e.key;
-    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].indexOf(k) >= 0) e.preventDefault();
-    if (k === "ArrowLeft" || k === "a" || k === "A") { held.l = true; if (!e.repeat) tap("l"); }
-    if (k === "ArrowRight" || k === "d" || k === "D") { held.r = true; if (!e.repeat) tap("r"); }
-    if (k === "ArrowUp" || k === "w" || k === "W") { held.u = true; if (!e.repeat) tap("u"); }
-    if (k === "ArrowDown" || k === "s" || k === "S") { held.d = true; if (!e.repeat) tap("d"); }
-    if (mode === STATE.MENU && !e.repeat) { // move between items with any movement key
+  // one key handler for two input sources: the keyboard and the gamepad
+  // poller below, which feeds it synthetic keys.
+  function pressKey(k, repeat) {
+    if (k === "ArrowLeft" || k === "a" || k === "A") { held.l = true; if (!repeat) tap("l"); }
+    if (k === "ArrowRight" || k === "d" || k === "D") { held.r = true; if (!repeat) tap("r"); }
+    if (k === "ArrowUp" || k === "w" || k === "W") { held.u = true; if (!repeat) tap("u"); }
+    if (k === "ArrowDown" || k === "s" || k === "S") { held.d = true; if (!repeat) tap("d"); }
+    if (mode === STATE.MENU && !repeat) { // move between items with any movement key
       var prev = menuSel;
       if (k === "ArrowUp" || k === "ArrowLeft" || k === "w" || k === "W" || k === "a" || k === "A") {
         menuSel = (menuSel + menuActs.length - 1) % menuActs.length;
@@ -973,10 +1101,10 @@
       else if (k === "Escape") { SND.confirm(); menu(); }
     }
     if (mode === STATE.AUDIO) { // sliders: up/down pick a row, left/right tune it
-      if ((k === "ArrowUp" || k === "w" || k === "W") && !e.repeat) {
+      if ((k === "ArrowUp" || k === "w" || k === "W") && !repeat) {
         audioSel = (audioSel + AUDIO_ROWS.length - 1) % AUDIO_ROWS.length;
         SND.select(); renderAudio();
-      } else if ((k === "ArrowDown" || k === "s" || k === "S") && !e.repeat) {
+      } else if ((k === "ArrowDown" || k === "s" || k === "S") && !repeat) {
         audioSel = (audioSel + 1) % AUDIO_ROWS.length;
         SND.select(); renderAudio();
       } else if (k === "ArrowLeft" || k === "a" || k === "A") {
@@ -987,6 +1115,23 @@
         SND.confirm(); menu();
       }
     }
+    if (mode === STATE.LEVELSEL) { // numpad grid: move around it, or type digits directly
+      var prevSel = levelSel;
+      if (k === "ArrowUp" || k === "w" || k === "W") levelSel = (levelSel + 9) % 12;
+      else if (k === "ArrowDown" || k === "s" || k === "S") levelSel = (levelSel + 3) % 12;
+      else if (k === "ArrowLeft" || k === "a" || k === "A") levelSel = (levelSel + 11) % 12;
+      else if (k === "ArrowRight" || k === "d" || k === "D") levelSel = (levelSel + 1) % 12;
+      else if (k >= "0" && k <= "9" && !repeat && levelEntry.length < 3 && parseInt(levelEntry + k, 10) <= 100) {
+        SND.select(); levelEntry += k; renderLevelSel();
+      } else if (k === "Backspace" && !repeat) {
+        SND.select(); levelEntry = levelEntry.slice(0, -1); renderLevelSel();
+      } else if (k === " " && !repeat) {
+        pressLevelCell(levelSel);
+      } else if (k === "Escape") {
+        SND.confirm(); menu();
+      }
+      if (levelSel !== prevSel) { SND.select(); renderLevelSel(); }
+    }
     if (k === "Escape" && (mode === STATE.OVER || mode === STATE.WIN)) {
       SND.confirm(); OVER_SFX.cut(); menu(); // bail out of the end screen, back to the menu
     }
@@ -996,21 +1141,80 @@
       else if (mode === STATE.DONE) { SND.confirm(); startLevel(game.level + 1); }
       else if (mode === STATE.OVER || mode === STATE.WIN) { SND.confirm(); OVER_SFX.cut(); menu(); }
     }
+    if (mode === STATE.PAUSE) { // pause menu: RESUME or QUIT TO MENU
+      var prevPause = pauseSel;
+      if (k === "ArrowUp" || k === "ArrowLeft" || k === "w" || k === "W" || k === "a" || k === "A") pauseSel = 0;
+      else if (k === "ArrowDown" || k === "ArrowRight" || k === "s" || k === "S" || k === "d" || k === "D") pauseSel = 1;
+      else if (k === " " && !repeat) { if (pauseSel === 0) resume(); else quitToMenu(); }
+      else if (k === "Escape") { SND.confirm(); resume(); }
+      if (pauseSel !== prevPause) { SND.select(); renderPause(); }
+    }
     if (k === "p" || k === "P") {
-      if (mode === STATE.PLAY) { mode = STATE.PAUSE; MUSIC.pause(); show("PAUSED", "<span class='blink'>P &mdash; resume</span>", "#ff0"); }
-      else if (mode === STATE.PAUSE) { mode = STATE.PLAY; MUSIC.resume(); hide(); }
+      if (mode === STATE.PLAY) showPause();
+      else if (mode === STATE.PAUSE) resume();
     }
     if ((k === "r" || k === "R") && mode === STATE.PLAY) { startLevel(game.level); }
-  });
-  ovMsg.addEventListener("wheel", function (e) { // mouse scrolling on the instructions screen
-    if (mode === STATE.HELP) { e.preventDefault(); scrollHelp(e.deltaY > 0 ? 3 : -3); }
-  });
-  document.addEventListener("keyup", function (e) {
-    var k = e.key;
+  }
+  function releaseKey(k) {
     if (k === "ArrowLeft" || k === "a" || k === "A") held.l = false;
     if (k === "ArrowRight" || k === "d" || k === "D") held.r = false;
     if (k === "ArrowUp" || k === "w" || k === "W") held.u = false;
     if (k === "ArrowDown" || k === "s" || k === "S") held.d = false;
+  }
+
+  // gamepads - XInput and DirectInput controllers through the browser Gamepad
+  // API (which is also what the Electron desktop build uses). No SDL needed:
+  // it's zlib-licensed, so MIT-compatible, but native and redundant here; the
+  // API already normalizes both pad families behind a standard button layout.
+  // D-pad and left stick move and navigate; A is Space, B is Esc, Start is P,
+  // Select is R. Pads appear after their first button press or connection.
+  var PAD = (function () {
+    var MAP = [ // standard gamepad layout
+      { b: 0, k: " " },         // A (bottom face) -> select
+      { b: 1, k: "Escape" },    // B (right face) -> back
+      { b: 8, k: "r" },         // Select/Back -> restart cave
+      { b: 9, k: "p" },         // Start -> pause
+      { b: 12, k: "ArrowUp" },
+      { b: 13, k: "ArrowDown" },
+      { b: 14, k: "ArrowLeft" },
+      { b: 15, k: "ArrowRight" }
+    ];
+    var was = {};
+    function frame() {
+      var pads = navigator.getGamepads ? navigator.getGamepads() : [];
+      var gp = null;
+      for (var i = 0; i < pads.length; i++) if (pads[i] && pads[i].connected) { gp = pads[i]; break; }
+      var now = {};
+      if (gp) {
+        for (var i = 0; i < MAP.length; i++) {
+          var bt = gp.buttons[MAP[i].b];
+          now[MAP[i].k] = !!(bt && (bt.pressed || bt.value > 0.5));
+        }
+        var ax = gp.axes; // the left stick doubles as the d-pad
+        if (ax.length > 1) {
+          if (ax[0] < -0.5) now.ArrowLeft = true;
+          if (ax[0] > 0.5) now.ArrowRight = true;
+          if (ax[1] < -0.5) now.ArrowUp = true;
+          if (ax[1] > 0.5) now.ArrowDown = true;
+        }
+      }
+      for (var key in was) if (was[key] && !now[key]) releaseKey(key); // includes pad unplugged
+      for (var key in now) if (now[key] && !was[key]) pressKey(key, false);
+      was = now;
+    }
+    return { frame: frame };
+  })();
+
+  document.addEventListener("keydown", function (e) {
+    AUD.wake();
+    if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", " "].indexOf(e.key) >= 0) e.preventDefault();
+    pressKey(e.key, e.repeat);
+  });
+  document.addEventListener("keyup", function (e) {
+    releaseKey(e.key);
+  });
+  ovMsg.addEventListener("wheel", function (e) { // mouse scrolling on the instructions screen
+    if (mode === STATE.HELP) { e.preventDefault(); scrollHelp(e.deltaY > 0 ? 3 : -3); }
   });
 
   menu();
