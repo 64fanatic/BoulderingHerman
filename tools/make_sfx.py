@@ -119,7 +119,22 @@ def splat():
     return mix(squelch, drop, 0.55)
 
 
+def one_up():
+    # four quick rising notes (C5 E5 G5 C6) with an octave shimmer on top:
+    # the classic extra-life chirp. Pure sines, so the seeded noise sounds
+    # above stay byte-identical when this file is rerun.
+    out = []
+    for f in (523.25, 659.25, 783.99, 1046.50):
+        n = int(SR * 0.09)
+        note = sine_sweep(n, f, f)
+        env = envelope(n, SR * 0.004, int(n * 0.6), curve=1.6)
+        note = [x * e for x, e in zip(note, env)]
+        out += mix(note, scale(sine_sweep(n, 2 * f, 2 * f), 0.25))
+    return out
+
+
 if __name__ == "__main__":
     write_wav("roll.wav", roll())
     write_wav("thud.wav", thud())
     write_wav("splat.wav", splat())
+    write_wav("oneup.wav", one_up())

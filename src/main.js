@@ -31,7 +31,9 @@
       hudBar.style.width = (canvas.width + 8) * k + "px";
       hudBar.style.marginBottom = 8 * k + "px"; // exactly the border overhang: no overlap, no gap
       hudBar.style.fontSize = 13 * k + "px";
-      overlay.style.fontSize = 15 * k + "px";
+      overlay.style.inset = (4 + 16 * k) + "px"; // menu lives inside the brick border, never over it
+      overlay.style.gap = 10 * k + "px";
+      overlay.style.fontSize = 13 * k + "px";
       frameEl.style.left = -8 * k + "px";
       frameEl.style.top = -8 * k + "px";
       frameEl.style.width = (canvas.width + 16) * k + "px";
@@ -62,9 +64,11 @@
       move: function () { play("assets/sfx/roll.wav", 0.3 * sfxGain, 110); },
       thud: function () { play("assets/sfx/thud.wav", 0.5 * sfxGain, 120); },
       splat: function () { play("assets/sfx/splat.wav", 0.6 * sfxGain, 0); },
+      oneUp: function () { play("assets/sfx/oneup.wav", 0.5 * sfxGain, 0); },
       step: function () { play("assets/sfx/footstep0" + (1 + Math.floor(Math.random() * 9)) + ".ogg", 0.15 * stepGain, 90, true); },
       select: function () { play("assets/sfx/select_001.ogg", 0.4 * sfxGain, 60); },
-      confirm: function () { play("assets/sfx/toggle_001.ogg", 0.4 * sfxGain, 60); }
+      confirm: function () { play("assets/sfx/toggle_001.ogg", 0.4 * sfxGain, 60); },
+      test: function (file) { play(file, 0.6 * sfxGain, 0); } // the audio menu's sound test
     };
   })();
   // Firefox throttles tabs it thinks are silent, and HDMI receivers drop the
@@ -388,7 +392,7 @@
     return { spawn: spawn, topUp: topUp, frame: frame, reset: function () { rats.length = 0; } };
   })();
   var STATE = { MENU: 0, PLAY: 1, PAUSE: 2, DEAD: 3, OVER: 4, DONE: 5, WIN: 6, HELP: 7, AUDIO: 8, LEVELSEL: 9 };
-  var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3 }, st = null;
+  var mode = STATE.MENU, game = { level: 1, score: 0, lives: 3, flowers: 0 }, st = null;
   var held = { l: false, r: false, u: false, d: false };
   var queue = []; // buffered taps, consumed one per tick, so quick presses are never lost
   function tap(dir) {
@@ -430,7 +434,7 @@
   function renderMenu() {
     var sv = load();
     var labels = [], acts = [];
-    labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3 }; RATS.reset(); startLevel(1); });
+    labels.push("START"); acts.push(function () { game = { level: 1, score: 0, lives: 3, flowers: 0 }; RATS.reset(); startLevel(1); });
     if (sv && sv.level > 1) labels.push("CONTINUE AT CAVE " + sv.level), acts.push(function () { game = sv; startLevel(sv.level); });
     labels.push("LEVEL SELECT"); acts.push(showLevelSel);
     labels.push("AUDIO"); acts.push(showAudio);
@@ -494,7 +498,7 @@
       if (!n) { SND.select(); return; } // nothing typed: nothing to start
       n = Math.min(100, Math.max(1, n));
       SND.confirm();
-      game = { level: n, score: 0, lives: 3 }; // a warp is a fresh run
+      game = { level: n, score: 0, lives: 3, flowers: 0 }; // a warp is a fresh run
       RATS.reset();
       startLevel(n);
     } else if (c === "C") {
@@ -543,12 +547,26 @@
 
   var audioSel = 0;
   var AUDIO_ROWS = [["music", "MUSIC"], ["sound", "SOUND"], ["step", "FOOTSTEPS"]];
+  // every discrete sound in the game, for the audio menu's sound test row
+  var TEST_SOUNDS = [
+    { name: "roll.wav" }, { name: "thud.wav" }, { name: "splat.wav" }, { name: "oneup.wav" },
+    { name: "select_001.ogg" }, { name: "toggle_001.ogg" }
+  ];
+  for (var ti = 1; ti <= 9; ti++) TEST_SOUNDS.push({ name: "footstep0" + ti + ".ogg" });
+  TEST_SOUNDS.push({ name: "tuomas_data-game-over-39-199830.mp3", jingle: true }); // plays via OVER_SFX
+  var testSel = 0;
+  function playTest() {
+    OVER_SFX.cut(); // silence a jingle left playing from an earlier step
+    var t = TEST_SOUNDS[testSel];
+    if (t.jingle) OVER_SFX.play();
+    else SND.test("assets/sfx/" + t.name);
+  }
   function showAudio() {
     mode = STATE.AUDIO;
     renderAudio();
   }
 
-  function renderAudio() { // three dB sliders, navigated and tuned with movement keys
+  function renderAudio() { // three dB sliders plus a sound test row
     var span = -AUDIO.MIN, html = "";
     for (var i = 0; i < AUDIO_ROWS.length; i++) {
       var key = AUDIO_ROWS[i][0], db = AUDIO.get(key);
@@ -560,7 +578,11 @@
         "&nbsp; <span style='color:" + (i === audioSel ? "#ff0" : "#0a0") + "'>" + bar + "</span>" +
         "&nbsp; " + (db <= AUDIO.MIN ? "MUTE" : db + " dB") + "</div>";
     }
-    html += "<br><span style='color:#fff'>&larr; &rarr; adjust &nbsp;|&nbsp; ESC &mdash; back</span>";
+    var onTest = audioSel === AUDIO_ROWS.length;
+    html += "<div style='line-height:2.1" + (onTest ? ";color:#fff" : ";color:#0f0") + "'>" +
+      (onTest ? "&raquo; " : "&nbsp;&nbsp;&nbsp;") + "SOUND TEST" +
+      " &nbsp;<span style='color:#ff0'>" + TEST_SOUNDS[testSel].name + "</span></div>";
+    html += "<br><span style='color:#fff'>&larr; &rarr; adjust / step &nbsp;|&nbsp; SPACE &mdash; play &nbsp;|&nbsp; ESC &mdash; back</span>";
     show("AUDIO", html, "#ff0");
     hint("ESC — BACK");
   }
@@ -619,9 +641,13 @@
         if (dx !== 0) dy = 0;
       }
       if (dx !== 0 || dy !== 0) {
-        var ox = st.px, oy = st.py;
+        var ox = st.px, oy = st.py, oc = st.collected;
         tryMove(st, dx, dy);
         if (st.px !== ox || st.py !== oy) SND.step();
+        if (st.collected > oc) { // a flower picked up: every 50 in total earns a life
+          game.flowers = (game.flowers || 0) + (st.collected - oc);
+          if (game.flowers % 50 === 0) { game.lives++; SND.oneUp(); }
+        }
       }
       if (st.dead || st.done) {
         st.done ? onComplete() : onDeath();
@@ -963,7 +989,7 @@
   // title-screen logo - just Herman's weird face, framed by a red royal robe:
   // frilly boulder-grey edge, curtain folds, a grey hem ring and a serrated
   // stone ruff collar around the face, like a rock about to smush him.
-  var LOGO_SCALE = 6;
+  var LOGO_SCALE = 4; // small enough that the whole menu fits inside the brick border
   var LOGO = (function () {
     var W = 34, H = 26, cx = 16.5, cy = 12.5;
     var rx = 16, ry = 11.5;   // robe ellipse
@@ -1100,19 +1126,28 @@
       else if (k === "ArrowDown" || k === "s" || k === "S") { SND.select(); scrollHelp(1); }
       else if (k === "Escape") { SND.confirm(); menu(); }
     }
-    if (mode === STATE.AUDIO) { // sliders: up/down pick a row, left/right tune it
+    if (mode === STATE.AUDIO) { // sliders: up/down pick a row; left/right tunes it or steps the sound test
+      var rows = AUDIO_ROWS.length + 1, wasTest = audioSel === AUDIO_ROWS.length;
       if ((k === "ArrowUp" || k === "w" || k === "W") && !repeat) {
-        audioSel = (audioSel + AUDIO_ROWS.length - 1) % AUDIO_ROWS.length;
-        SND.select(); renderAudio();
+        audioSel = (audioSel + rows - 1) % rows;
+        if (!wasTest && audioSel === AUDIO_ROWS.length) playTest(); // landing on the row plays the file
+        else SND.select();
+        renderAudio();
       } else if ((k === "ArrowDown" || k === "s" || k === "S") && !repeat) {
-        audioSel = (audioSel + 1) % AUDIO_ROWS.length;
-        SND.select(); renderAudio();
+        audioSel = (audioSel + 1) % rows;
+        if (!wasTest && audioSel === AUDIO_ROWS.length) playTest();
+        else SND.select();
+        renderAudio();
       } else if (k === "ArrowLeft" || k === "a" || k === "A") {
-        SND.select(); AUDIO.adjust(AUDIO_ROWS[audioSel][0], -1); renderAudio();
+        if (wasTest) { testSel = (testSel + TEST_SOUNDS.length - 1) % TEST_SOUNDS.length; playTest(); renderAudio(); }
+        else { SND.select(); AUDIO.adjust(AUDIO_ROWS[audioSel][0], -1); renderAudio(); }
       } else if (k === "ArrowRight" || k === "d" || k === "D") {
-        SND.select(); AUDIO.adjust(AUDIO_ROWS[audioSel][0], 1); renderAudio();
+        if (wasTest) { testSel = (testSel + 1) % TEST_SOUNDS.length; playTest(); renderAudio(); }
+        else { SND.select(); AUDIO.adjust(AUDIO_ROWS[audioSel][0], 1); renderAudio(); }
+      } else if (k === " " && !repeat && wasTest) {
+        playTest();
       } else if (k === "Escape") {
-        SND.confirm(); menu();
+        SND.confirm(); OVER_SFX.cut(); menu();
       }
     }
     if (mode === STATE.LEVELSEL) { // numpad grid: move around it, or type digits directly
