@@ -18,19 +18,11 @@ Procedural generation of course, which means no two play-throughs feel quite the
 
 Releases page for Linux AppImage and Windows executable.
 
-Open `index.html` in a browser and you're off. If your browser is the suspicious type and blocks ES modules on `file://` (some do), just run:
+The game screen integer scales with your window. No fractional scaling in this cave.
 
-```
-python3 -m http.server
-```
+## Development
 
-and then head over to http://localhost:8000.
-
-The game screen integer scales with your web browser window. No fractional scaling in this cave.
-
-## Development, one revision at a time
-
-This whole game is an experiment in building with French tier AI while barely qualifying as a script kiddie: each revision below came
+This whole game is an experiment in creating with French tier AI while barely qualifying as a script kiddie: each revision below came
 out of the same loop — describe the change, let the agent make it, play the caves, decide what's next.
 
 <table>
@@ -44,15 +36,25 @@ out of the same loop — describe the change, let the agent make it, play the ca
     <td align="center">revision 2</td>
     <td align="center">revision 2-2</td>
   </tr>
+  <tr>
+    <td align="center"><img src="readme/images/thumbs/revision%203-1.png" width="300" alt="Revision 3-1"></td>
+    <td align="center"><img src="readme/images/thumbs/revision%203-2.png" width="300" alt="Revision 3-2"></td>
+  </tr>
+  <tr>
+    <td align="center">revision 3-1</td>
+    <td align="center">revision 3-2</td>
+  </tr>
 </table>
 
 ## Controls
 
 - **Move:** arrow keys or WASD. Herman digs where he walks.
-- **SPACE:** start the game, keep going, next cave. The universal "yes" button.
-- **C:** pick up right where you left off in a saved game.
-- **P:** pause. Coffee breaks are allowed.
+- **SPACE:** the universal "yes" — pick menu items, start, retry, keep going, next cave.
+- **P** (or **ESC**): pause. The pause menu offers a resume or a clean quit back to the title.
 - **R:** restart the cave. We won't judge. Much.
+- **Menus:** navigate with the movement keys. LEVEL SELECT is a numpad grid. The AUDIO screen tunes music, sound and footsteps, and its SOUND TEST row steps through every sound file in the game by name.
+
+**Gamepads work too** (XInput and DirectInput): stick or D-pad moves and navigates, **A** is SPACE, **B** is ESC, **Start** pauses, **Select** restarts the cave. Plug in and press any button.
 
 ## Gameplay Description:
 

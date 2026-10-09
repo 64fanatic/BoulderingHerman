@@ -45,7 +45,7 @@
   // boulder sounds - original synthesized effects (see tools/make_sfx.py)
   // menu sounds - Kenney GameSynth assets (select_001/toggle_001)
   var SND = (function () {
-    var last = {}, sfxGain = 1, stepGain = 1; // dB slider gains, applied live
+    var last = {}, sfxGain = 1, stepGain = 1, testEl = null; // dB slider gains, applied live
     function play(file, vol, gap, wobble) {
       var now = performance.now();
       if (last[file] && now - last[file] < gap) return;
@@ -68,7 +68,14 @@
       step: function () { play("assets/sfx/footstep0" + (1 + Math.floor(Math.random() * 9)) + ".ogg", 0.15 * stepGain, 90, true); },
       select: function () { play("assets/sfx/select_001.ogg", 0.4 * sfxGain, 60); },
       confirm: function () { play("assets/sfx/toggle_001.ogg", 0.4 * sfxGain, 60); },
-      test: function (file) { play(file, 0.6 * sfxGain, 0); } // the audio menu's sound test
+      test: function (file) { // the audio menu's sound test: one channel, cut on the next play
+        if (testEl) { try { testEl.pause(); } catch (e) {} }
+        testEl = new Audio(file);
+        testEl.volume = Math.min(1, Math.max(0, 0.6 * sfxGain));
+        var p = testEl.play();
+        if (p && p.catch) p.catch(function () {});
+      },
+      testCut: function () { if (testEl) { try { testEl.pause(); } catch (e) {} testEl = null; } }
     };
   })();
   // Firefox throttles tabs it thinks are silent, and HDMI receivers drop the
@@ -670,12 +677,22 @@
   ];
   for (var ti = 1; ti <= 9; ti++) TEST_SOUNDS.push({ name: "footstep0" + ti + ".ogg" });
   TEST_SOUNDS.push({ name: "tuomas_data-game-over-39-199830.mp3", jingle: true }); // plays via OVER_SFX
+  // the looping cave musics, played once under short names (the real filenames
+  // are 70+ characters and would wreck the menu layout)
+  TEST_SOUNDS.push(
+    { name: "big-temple-cave-soundscape.mp3",
+      path: "assets/background audio/freesound_community-big-temlpe-cave-soundscape-fantasy-201117_0067-26818.mp3" },
+    { name: "cave-background-sound.mp3",
+      path: "assets/background audio/freesound_community-cave-background-sound-49440.mp3" },
+    { name: "dungeon-air.mp3",
+      path: "assets/background audio/freesound_community-dungeon-air-6983.mp3" }
+  );
   var testSel = 0;
   function playTest() {
     OVER_SFX.cut(); // silence a jingle left playing from an earlier step
     var t = TEST_SOUNDS[testSel];
     if (t.jingle) OVER_SFX.play();
-    else SND.test("assets/sfx/" + t.name);
+    else SND.test(t.path || "assets/sfx/" + t.name);
   }
   function showAudio() {
     mode = STATE.AUDIO;
@@ -1265,7 +1282,7 @@
       } else if (k === " " && !repeat && wasTest) {
         playTest();
       } else if (k === "Escape") {
-        SND.confirm(); OVER_SFX.cut(); menu();
+        SND.confirm(); OVER_SFX.cut(); SND.testCut(); menu(); // don't leave a test track running
       }
     }
     if (mode === STATE.LEVELSEL) { // numpad grid: move around it, or type digits directly
