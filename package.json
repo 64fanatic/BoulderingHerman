@@ -1,0 +1,41 @@
+{
+  "name": "bouldering-herman",
+  "version": "0.0.5",
+  "description": "Bouldering Herman and the Sloppy Rocks - a Boulder Dash-style game with 100 procedurally generated caves",
+  "author": "HermanVibeSlop",
+  "homepage": "https://github.com/64fanatic/HermanVibeSlop",
+  "main": "desktop-main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --linux AppImage --win portable"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.hermanvibeslop.boulderingherman",
+    "productName": "Bouldering Herman and the Sloppy Rocks",
+    "copyright": "HermanVibeSlop",
+    "files": [
+      "desktop-main.js",
+      "index.html",
+      "styles.css",
+      "src/**/*",
+      "assets/**/*"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "icon": "build/icon.ico"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Game",
+      "icon": "build/icon.png"
+    }
+  }
+}

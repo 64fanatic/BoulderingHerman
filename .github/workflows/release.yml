@@ -1,0 +1,39 @@
+name: release
+
+# Desktop builds ship to the GitHub release page when a version tag is pushed:
+#   git tag v0.0.5 && git push origin v0.0.5
+# (Normal pushes to main never create releases - only tags do.)
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # AppImage builds natively on Linux; the Windows portable .exe is
+      # cross-built from here (no signing, no wine needed for these targets)
+      - run: npx electron-builder --linux AppImage --win portable --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          USE_HARD_LINKS: "false"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: desktop-builds
+          path: dist/*
+          retention-days: 7
