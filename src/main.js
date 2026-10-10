@@ -1,4 +1,5 @@
 (function () {
+  var VERSION = "0.5.1"; // keep in sync with package.json - shown on the title screen
   var canvas = document.getElementById("game");
   var ctx = canvas.getContext("2d");
   var overlay = document.getElementById("overlay");
@@ -636,6 +637,10 @@
       html += "<div style='color:" + (i === menuSel ? "#fff" : "#0f0") + ";line-height:1.9'>" +
         (i === menuSel ? "&raquo; " : "&nbsp;&nbsp;&nbsp;") + labels[i] + "</div>";
     }
+    // version stamp, bottom-left in a smaller muted font
+    html += "<div style='position:absolute;left:" + (10 * fitK) + "px;bottom:" + (6 * fitK) +
+      "px;font-size:0.78em;color:#646464;font-family:Almendra,serif'>v" + VERSION +
+      " &mdash; Vibed by 64fanatic 2026</div>";
     show("BOULDERING HERMAN AND THE SLOPPY ROCKS", html, "#0f0");
     hint("SPACE — SELECT");
   }
