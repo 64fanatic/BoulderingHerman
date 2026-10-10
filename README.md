@@ -16,14 +16,24 @@ The more caves you clear, the harder and meaner the cave generator gets. To a po
 
 ## Play
 
-Releases page for Linux AppImage and Windows executable, or download the repo and open index.html.
+Downloads from the [latest release](https://github.com/64fanatic/BoulderingHerman/releases/latest):
+
+- [Linux AppImage](https://github.com/64fanatic/BoulderingHerman/releases/download/v0.5.1/Bouldering-Herman-and-the-Sloppy-Rocks-0.5.1.AppImage)
+- [Windows executable](https://github.com/64fanatic/BoulderingHerman/releases/download/v0.5.1/Bouldering.Herman.and.the.Sloppy.Rocks.0.5.1.exe)
+
+Or download the repo and open index.html.
 
 The game screen integer scales with your window. No fractional scaling in this cave.
+
+### AI PlayTest mode
+
+On the title screen, press left/right on the START item to switch between **NORMAL** and **AI PLAYTEST**. In AI PLAYTEST the game plays itself: an in-game pilot (the same brain as the headless playtest bot in tools/playtest_bot.js) flies Herman through the full arcade run from cave 1 — three lives, retrying caves after every splat, advancing on every clear — until it beats all 100 caves or the caves beat it. Grab popcorn. The keyboard is ignored while the pilot flies; pause, restart and the menus still work.
 
 ## Development
 
 This whole game is an experiment in creating with French tier AI while barely qualifying as a script kiddie: each revision below came
-out of the same loop — describe the change, let the agent make it, play the caves, decide what's next.
+out of the same loop — describe the change, let the agent make it, play the caves, decide what's next. The agent also brought its own
+playtester: tools/playtest_bot.js grinds through all 100 caves headless in seconds, and the same brain ships in-game as the AI PLAYTEST pilot.
 
 <table>
   <tr>
