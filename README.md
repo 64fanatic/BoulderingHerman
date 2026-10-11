@@ -6,7 +6,7 @@ This is a Boulder Dash-style game with 100 procedurally generated caves. Static 
 
 https://www.mobygames.com/game/233178/herman-and-the-falling-rocks/
 
-That concept is the base I'm working with and I'll add some more features beyond what the 1992 original was capable of in my vibe slop edumacation journey, and probably end up going too far in a couple places.
+That concept is the base I'm working with and I'll add some more features beyond what the 1992 original was capable of in my agentic vibe slop curiosity project.
 
 Check out LGR's game review for more historical context:
 
@@ -28,10 +28,6 @@ The game screen integer scales with your browser window. No fractional scaling.
 ### AI PlayTest mode
 
 On the title screen, press left/right on the START item to switch between **NORMAL** and **AI PLAYTEST**. In AI PLAYTEST the game plays itself. Currently the bot can get to Cave 25 before it gets stuck.
-
-## Development
-
-This whole game is to gain a better understanding of slop and what it's capable of. This is purely Agentic coding.
 
 <table>
   <tr>
